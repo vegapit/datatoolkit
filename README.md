@@ -3,6 +3,12 @@
 This crate allows the manipulation of indexed data structures like time series. Cretaing a TimeSeries struct is easy:
 
 ```rust
+extern crate datatoolkit;
+extern crate chrono;
+
+use datatoolkit::{DataPoint,TimeSeries};
+use chrono::{Utc, TimeZone};
+
 let mut ts = TimeSeries::new( "Dummy", None );
 let dps = vec![ 
     DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 0, 0), 122f64),
