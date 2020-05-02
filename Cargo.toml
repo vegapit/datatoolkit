@@ -1,0 +1,13 @@
+[package]
+name = "datatoolkit"
+version = "0.1.0"
+authors = ["Vegapit <info@vegapit.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
