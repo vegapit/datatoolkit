@@ -5,18 +5,18 @@ use crate::HistoricalData;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DataVector {
-    pub id: String,
-    pub timesignature: DateTime<Utc>,
-    pub data: HashMap<String,f64>
+    id: String,
+    time_signature: DateTime<Utc>,
+    data: HashMap<String,f64>
 }
 
 impl DataVector {
 
-    pub fn new(id: &str, timesignature: DateTime<Utc>, data: HashMap<String,f64>) -> DataVector {
+    pub fn new(id: &str, time_signature: DateTime<Utc>, data: HashMap<String,f64>) -> DataVector {
         DataVector{
             id: id.to_string(),
-            timesignature: timesignature,
-            data: data.clone()
+            time_signature: time_signature,
+            data: data
         }
     }
 
@@ -39,24 +39,24 @@ impl DataVector {
 }
 
 impl HistoricalData for DataVector{
-    fn id(&self) -> String{
-        self.id.clone()
+    fn get_id(&self) -> &str {
+        self.id.as_str()
     }
-    fn timesignature(&self) -> DateTime<Utc> {
-        self.timesignature
+    fn get_time_signature(&self) -> &DateTime<Utc> {
+        &self.time_signature
     }
 }
 
 impl Ord for DataVector {
     fn cmp(&self, other: &DataVector) -> Ordering {
-        self.timesignature.cmp( &other.timesignature )
+        self.time_signature.cmp( &other.time_signature )
     }
 }
 
 impl PartialOrd for DataVector {
     fn partial_cmp(&self, other: &DataVector) -> Option<Ordering> {
         if self.id == other.id {
-            Some( self.timesignature.cmp( &other.timesignature ) )
+            Some( self.time_signature.cmp( &other.time_signature ) )
         } else {
             None
         }
@@ -73,7 +73,7 @@ impl PartialEq for DataVector {
                 return false;
             }
         }
-        self.id == other.id && self.timesignature == other.timesignature
+        self.id == other.id && self.time_signature == other.time_signature
     }
 }
 

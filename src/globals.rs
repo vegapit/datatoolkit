@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 
 pub trait HistoricalData{
-    fn id(&self) -> String;
-    fn timesignature(&self) -> DateTime<Utc>;
+    fn get_id(&self) -> &str;
+    fn get_time_signature(&self) -> &DateTime<Utc>;
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]

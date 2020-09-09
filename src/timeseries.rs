@@ -1,12 +1,13 @@
 use chrono::{DateTime, Utc};
 use crate::HistoricalData;
 use crate::DataPoint;
+use std::ops::Index;
 
 #[derive(Debug, Clone)]
 pub struct TimeSeries<T> {
-    pub id: String,
-    pub index: Vec<DateTime<Utc>>,
-    pub data: Vec<T>,
+    id: String,
+    index: Vec<DateTime<Utc>>,
+    data: Vec<T>,
     optmaxsize: Option<usize>,
     counter: usize
 }
@@ -15,9 +16,10 @@ impl TimeSeries<DataPoint> {
 
     /// Insert item or add data if it exists
     pub fn insert_add(&mut self, item: DataPoint) {
-        if self.id == item.id {
-            if let Some(k) = self.index.iter().position(|&x| x == item.timesignature ) {
-                self.data[k].data += item.data;
+        if self.id.as_str() == item.get_id() {
+            if let Some(k) = self.index.iter().position(|&x| &x == item.get_time_signature() ) {
+                let val = self.data[k].get();
+                self.data[k].set( val + item.get() );
             } else {
                 self.data.push(item);
                 self.data.sort();
@@ -26,7 +28,7 @@ impl TimeSeries<DataPoint> {
                         self.data.remove(0);
                     }
                 }
-                self.index = self.data.iter().map(|ref e| e.timesignature()).collect();
+                self.index = self.data.iter().map(|e| e.get_time_signature()).cloned().collect();
             }
         }
     }
@@ -35,15 +37,26 @@ impl TimeSeries<DataPoint> {
     pub fn cumsum(&self) -> TimeSeries<DataPoint> {
         let mut running_total = 0f64;
         let mut ts = TimeSeries::new( self.id.as_str(), self.optmaxsize );
-        for dp in self.clone().into_iter() {
-            let mut adj_dp = dp;
-            adj_dp.data += running_total;
-            running_total = adj_dp.data;
-            ts.insert_update( adj_dp );
+        for mut dp in self.clone().into_iter() {
+            running_total += dp.get();
+            dp.set( running_total );
+            ts.insert_update( dp );
         }
         ts
     }
 
+}
+
+impl<T: Clone + Ord + HistoricalData> Index<i32> for TimeSeries<T> {
+    type Output = T;
+
+    fn index<'a>(&'a self, index: i32) -> &'a T {
+        if index >= 0 {
+            &self.data[index as usize]
+        } else {
+            &self.data[self.data.len() - (-index as usize)]
+        }
+    }
 }
 
 impl<T: Clone + Ord + HistoricalData> Iterator for TimeSeries<T> {
@@ -78,10 +91,14 @@ impl<T: Clone + Ord + HistoricalData> TimeSeries<T> {
         ts
     }
 
+    pub fn get_id(&self) -> &str {
+        self.id.as_str()
+    }
+
     /// Insert item or update if it already exists
     pub fn insert_update(&mut self, item: T) {
-        if self.id == item.id() {
-            if let Some(k) = self.index.iter().position(|&x| x == item.timesignature() ) {
+        if self.id.as_str() == item.get_id() {
+            if let Some(k) = self.index.iter().position(|x| x == item.get_time_signature() ) {
                 self.data[k] = item;
             } else {
                 self.data.push(item);
@@ -91,14 +108,14 @@ impl<T: Clone + Ord + HistoricalData> TimeSeries<T> {
                         self.data.remove(0);
                     }
                 }
-                self.index = self.data.iter().map(|ref e| e.timesignature()).collect();
+                self.index = self.data.iter().map(|e| e.get_time_signature()).cloned().collect();
             }
         }
     }
 
     /// Get item corresponding to timesignature
-    pub fn get(&self, timesignature: &DateTime<Utc>, offset: i32) -> Option<T> {
-        let optpos = self.index.iter().rposition(|e| e == timesignature);
+    pub fn at(&self, time_signature: &DateTime<Utc>, offset: i32) -> Option<T> {
+        let optpos = self.index.iter().rposition(|e| e == time_signature);
         match optpos {
             Some( pos ) => {
                 if offset > 0{
@@ -122,35 +139,25 @@ impl<T: Clone + Ord + HistoricalData> TimeSeries<T> {
     }
 
     /// Get range with reference timesignature and startoffset
-    pub fn range(&self, timesignature: &DateTime<Utc>, size: usize, offset: i32) -> Option<Vec<T>> {
+    pub fn range_at(&self, timesignature: &DateTime<Utc>, size: usize, offset: i32) -> Vec<T> {
         let mut res : Vec<T> = Vec::new();
         for i in 0..size {
-            if let Some( data ) = self.get(timesignature, offset + (i as i32)) {
+            if let Some( data ) = self.at(timesignature, offset + (i as i32)) {
                 res.push( data );
-            } else {
-                return None;
             }
         }
-        Some( res )
+        res
     }
 
-    /// Get range starting from the end of the time series with offset 
-    pub fn previous_range(&self, size: usize, negoffset: usize) -> Option<Vec<T>> {
-        if let Some( lastdata ) = self.previous( negoffset ) {
-            self.range( &lastdata.timesignature(), size, -(size as i32) + 1 )
-        } else {
-            None
+    /// Get range  
+    pub fn range(&self, start: i32, end: i32) -> Vec<T> {
+        let is : usize = if start >= 0 { start as usize } else { self.data.len() + start as usize };
+        let ie : usize = if end >= 0 { end as usize } else { self.data.len() + end as usize };
+        let mut res : Vec<T> = Vec::new();
+        for i in is..ie {
+            res.push( self[i as i32].clone() )
         }
-    }
-
-    /// Retrieve last element of the time Series
-    pub fn previous(&self, negoffset: usize) -> Option<T> {
-        let totalnum = self.data.len();
-        if totalnum >= negoffset + 1 {
-            Some( self.data[totalnum - negoffset - 1].clone() )
-        } else {
-            None
-        }
+        res
     }
 
 }

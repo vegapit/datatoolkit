@@ -16,4 +16,10 @@ fn datapoint_operations() {
 
     assert!(r1 != r2);
     assert!(r2 != r3);
+
+    assert_eq!( (&r1 + &r2).unwrap().get(), 15f64 );
+    assert_eq!( (&r1 - &r2).unwrap().get(), 5f64 );
+    assert_eq!( (&r1 * &r2).unwrap().get(), 50f64 );
+    assert_eq!( (&r1 / &r2).unwrap().get(), 2f64 );
+    assert_eq!( &r1 + &r3, None );
 }
