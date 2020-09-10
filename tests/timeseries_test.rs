@@ -1,61 +1,62 @@
 extern crate datatoolkit;
 extern crate chrono;
 
-use datatoolkit::{DataPoint,TimeSeries};
-use chrono::{Utc, TimeZone};
+use datatoolkit::{DataPoint,Series};
+use chrono::{DateTime, Utc, TimeZone};
 
-fn build_timeseries() -> TimeSeries<DataPoint> {
-    let ticker = "Dummy";
+fn build_series() -> Series<DateTime<Utc>, u32> {
     let dps = vec![ 
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 0, 0), 122f64),
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 1, 0), 120f64),
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), 118f64),
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 3, 0), 114f64),
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 5, 0), 116f64),
-        DataPoint::new(ticker, Utc.ymd(2008, 1, 1).and_hms(0, 4, 0), 117f64)
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 0, 0), 122),
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 1, 0), 120),
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), 118),
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 3, 0), 114),
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 5, 0), 116),
+        DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 4, 0), 117)
     ];
-    TimeSeries::from_vec( ticker, dps )
+    Series::from_vec( "Test", dps )
 }
 
 #[test]
 fn getters() {
-    let ts = build_timeseries();
+    let ts = build_series();
     // Get method
-    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), 0).unwrap().get(), 118f64 );
-    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), -1).unwrap().get(), 120f64 );
-    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 3, 0), 1).unwrap().get(), 117f64 );
+    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), 0).unwrap().get(), &118 );
+    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 2, 0), -1).unwrap().get(), &120 );
+    assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 3, 0), 1).unwrap().get(), &117 );
     assert_eq!( ts.at(&Utc.ymd(2008, 1, 1).and_hms(0, 6, 0), 0), None );
     // Latest range method
     let res = ts.range(-3, -1);
-    assert_eq!( res[0].get(), 114f64 );
-    assert_eq!( res[1].get(), 117f64 );
+    assert_eq!( res[0].get(), &114 );
+    assert_eq!( res[1].get(), &117 );
+    assert_eq!( res[2].get(), &116 );
     // Range method
     let res = ts.range_at(&Utc.ymd(2008, 1, 1).and_hms(0, 5, 0), 2, -2);
-    assert_eq!( res[0].get(), 114f64 );
-    assert_eq!( res[1].get(), 117f64 );
+    assert_eq!( res[0].get(), &114 );
+    assert_eq!( res[1].get(), &117 );
     // Index 
-    assert_eq!( ts[-1].get(), 116f64 ); // Last element
-    assert_eq!( ts[0].get(), 122f64 ); // First element
+    assert_eq!( ts[-1].get(), &116 ); // Last element
+    assert_eq!( ts[0].get(), &122 ); // First element
 }
 
 #[test]
 fn iterator() {
-    let ts = build_timeseries();
-    let res : Vec<DataPoint> = ts.into_iter().collect();
+    let ts = build_series();
+    let res : Vec<DataPoint<DateTime<Utc>,u32>> = ts.into_iter().collect();
     assert_eq!(res.len(), 6);
-    assert_eq!(res[2].get(), 118f64);
+    assert_eq!(res[2].get(), &118);
 }
 
 #[test]
 fn cumsum() {
-    let ts = build_timeseries();
-    assert_eq!( ts.cumsum()[-1].get(), 707f64);  
+    let mut ts = build_series();
+    ts = ts.cumsum();
+    assert_eq!( ts[-1].get(), &707);
 }
 
 #[test]
 fn insert() {
-    let mut ts = build_timeseries();
+    let mut ts = build_series();
     let date = Utc.ymd(2008, 1, 1).and_hms(0, 2, 0);
-    ts.insert_add( DataPoint::new( ts.get_id(), date.clone() , 5f64) );
-    assert_eq!( ts.at( &date, 0 ).unwrap().get(), 123f64);  
+    ts.insert_add( DataPoint::new( date.clone() , 5) );
+    assert_eq!( ts.at( &date, 0 ).unwrap().get(), &123);  
 }

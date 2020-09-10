@@ -1,76 +1,63 @@
 use std::cmp::Ordering;
-use std::ops;
-use chrono::{DateTime, Utc};
-use crate::HistoricalData;
+use std::ops::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DataPoint {
-    id: String,
-    time_signature: DateTime<Utc>,
-    data: f64
+pub struct DataPoint<T,U> {
+    index: T,
+    data: U
 }
 
-impl DataPoint {
-    pub fn new(id: &str, time_signature: DateTime<Utc>, data: f64) -> DataPoint {
+impl<T,U> DataPoint<T,U> {
+    pub fn new(index: T, data: U) -> DataPoint<T,U> {
         DataPoint{
-            id: id.to_string(),
             data: data, 
-            time_signature: time_signature
+            index: index
         }
     }
-
-    pub fn get(&self) -> f64 {
-        self.data
+    
+    pub fn get_index(&self) -> &T {
+        &self.index
+    }
+    
+    pub fn get(&self) -> &U {
+        &self.data
     }
 
-    pub fn set(&mut self, value: f64) {
+    pub fn set(&mut self, value: U) {
         self.data = value;
     }
 
-    pub fn apply(&mut self, f: impl Fn(f64) -> f64) {
-        self.data = f(self.data);
+    pub fn apply(&mut self, f: impl Fn(&U) -> U) {
+        self.data = f(&self.data);
     }
 }
 
-impl HistoricalData for DataPoint{
-    fn get_id(&self) -> &str {
-        self.id.as_str()
-    }
-    fn get_time_signature(&self) -> &DateTime<Utc> {
-        &self.time_signature
+impl<T: Ord,U: PartialOrd> Ord for DataPoint<T,U> {
+    fn cmp(&self, other: &DataPoint<T,U>) -> Ordering {
+        self.index.cmp(&other.index)
     }
 }
 
-impl Ord for DataPoint {
-    fn cmp(&self, other: &DataPoint) -> Ordering {
-        self.time_signature.cmp(&other.time_signature)
+impl<T: Ord,U: PartialOrd> PartialOrd for DataPoint<T,U> {
+    fn partial_cmp(&self, other: &DataPoint<T,U>) -> Option<Ordering> {
+        Some( self.index.cmp(&other.index) )
     }
 }
 
-impl PartialOrd for DataPoint {
-    fn partial_cmp(&self, other: &DataPoint) -> Option<Ordering> {
-        if self.id == other.id {
-            Some( self.time_signature.cmp(&other.time_signature) )
-        } else {
-            None
-        }
+impl<T: Ord,U: PartialOrd> PartialEq for DataPoint<T,U> {
+    fn eq(&self, other: &DataPoint<T,U>) -> bool {
+        self.index == other.index && self.data == other.data
     }
 }
 
-impl PartialEq for DataPoint {
-    fn eq(&self, other: &DataPoint) -> bool {
-        self.id == other.id && self.time_signature == other.time_signature && self.data == other.data
-    }
-}
+impl<T: Ord,U: PartialOrd> Eq for DataPoint<T,U> {}
 
-impl Eq for DataPoint {}
+impl<T: Ord + Clone,U: PartialOrd + AddAssign + Copy> Add<&DataPoint<T,U>> for &DataPoint<T,U> {
+    type Output = Option<DataPoint<T,U>>;
 
-impl ops::Add<&DataPoint> for &DataPoint {
-    type Output = Option<DataPoint>;
-
-    fn add(self, other: &DataPoint) -> Self::Output {
-        let mut dp = self.clone();
-        if dp.time_signature == other.time_signature && self.id == other.id {
+    fn add(self, other: &DataPoint<T,U>) -> Self::Output {
+        if self.index == other.index {
+            let mut dp = self.clone();
             dp.data += other.data;
             Some( dp )
         } else {
@@ -79,12 +66,12 @@ impl ops::Add<&DataPoint> for &DataPoint {
     }
 }
 
-impl ops::Sub<&DataPoint> for &DataPoint {
-    type Output = Option<DataPoint>;
+impl<T: Ord + Clone,U: PartialOrd + SubAssign + Copy> Sub<&DataPoint<T,U>> for &DataPoint<T,U> {
+    type Output = Option<DataPoint<T,U>>;
 
-    fn sub(self, other: &DataPoint) -> Self::Output {
-        let mut dp = self.clone();
-        if dp.time_signature == other.time_signature && self.id == other.id {
+    fn sub(self, other: &DataPoint<T,U>) -> Self::Output {
+        if self.index == other.index {
+            let mut dp = self.clone();
             dp.data -= other.data;
             Some( dp )
         } else {
@@ -93,12 +80,12 @@ impl ops::Sub<&DataPoint> for &DataPoint {
     }
 }
 
-impl ops::Mul<&DataPoint> for &DataPoint {
-    type Output = Option<DataPoint>;
+impl<T: Ord + Clone,U: PartialOrd + MulAssign + Copy> Mul<&DataPoint<T,U>> for &DataPoint<T,U> {
+    type Output = Option<DataPoint<T,U>>;
 
-    fn mul(self, other: &DataPoint) -> Self::Output {
-        let mut dp = self.clone();
-        if dp.time_signature == other.time_signature && self.id == other.id {
+    fn mul(self, other: &DataPoint<T,U>) -> Self::Output {
+        if self.index == other.index {
+            let mut dp = self.clone();
             dp.data *= other.data;
             Some( dp )
         } else {
@@ -107,12 +94,12 @@ impl ops::Mul<&DataPoint> for &DataPoint {
     }
 }
 
-impl ops::Div<&DataPoint> for &DataPoint {
-    type Output = Option<DataPoint>;
+impl<T: Ord + Clone,U: PartialOrd + DivAssign + Copy> Div<&DataPoint<T,U>> for &DataPoint<T,U> {
+    type Output = Option<DataPoint<T,U>>;
 
-    fn div(self, other: &DataPoint) -> Self::Output {
-        let mut dp = self.clone();
-        if dp.time_signature == other.time_signature && self.id == other.id && other.data != 0f64 {
+    fn div(self, other: &DataPoint<T,U>) -> Self::Output {
+        if self.index == other.index {
+            let mut dp = self.clone();
             dp.data /= other.data;
             Some( dp )
         } else {

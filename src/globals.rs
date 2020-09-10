@@ -1,14 +1,19 @@
-use chrono::{DateTime, Utc};
-
-pub trait HistoricalData{
-    fn get_id(&self) -> &str;
-    fn get_time_signature(&self) -> &DateTime<Utc>;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum FlexData {
+    Str(String),
+    Uint(u32),
+    Int(i64),
+    Dbl(f64),
+    Char(char),
+    NA
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
-#[serde(tag="t",content="c")]
-pub enum Frequency{
-    Days(u32),
-    Hours(u32),
-    Minutes(u32)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum FlexDataType {
+    Str,
+    Uint,
+    Int,
+    Dbl,
+    Char,
+    NA
 }

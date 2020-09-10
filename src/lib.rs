@@ -1,12 +1,15 @@
 #[macro_use] extern crate serde;
-extern crate chrono;
 
+mod flextable;
 mod datapoint;
-mod datavector;
-mod timeseries;
+mod flexdatavector;
+mod series;
+mod flexdatapoint;
 mod globals;
 
+pub use self::flextable::FlexTable;
 pub use self::datapoint::DataPoint;
-pub use self::datavector::DataVector;
-pub use self::timeseries::TimeSeries;
-pub use self::globals::{HistoricalData, Frequency};
+pub use self::flexdatavector::FlexDataVector;
+pub use self::series::Series;
+pub use self::flexdatapoint::FlexDataPoint;
+pub use self::globals::{FlexDataType, FlexData};
