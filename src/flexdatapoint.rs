@@ -31,6 +31,9 @@ impl FlexDataPoint {
         self.index = index;
     }
 
+    pub fn apply(&self, f: impl Fn(&FlexData) -> FlexData) -> Self {
+        Self::new(self.index.clone(), f(&self.data))
+    }
 }
 
 impl PartialEq for FlexDataPoint {

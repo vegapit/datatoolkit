@@ -1,7 +1,7 @@
 use std::fs::File;
-use std::fmt;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
+use std::ops::*;
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 pub struct FlexTable{
@@ -17,6 +17,20 @@ impl FlexTable {
             iter_counter: 0,
             series: series
         }
+    }
+
+    pub fn from_records( records: Vec<FlexDataVector> ) -> Self {
+        let headers : Vec<&str> = records[0].get_labels().iter().map(|s| s.as_str()).collect();
+        let datatypes : Vec<FlexDataType> = records[0].get_datatypes().iter().cloned().collect();
+        let mut series : Vec<FlexSeries> = headers.iter().zip( datatypes.into_iter() )
+            .map(|(h,d)| FlexSeries::new(h, d))
+            .collect();
+        for counter in 0..records.len() {
+            for k in 0..headers.len() {
+                series[k].insert_update( FlexDataPoint::new( FlexIndex::Uint(counter), records[counter][k].clone()) );
+            }
+        }
+        Self::new( series )
     }
 
     pub fn from_csv(filepath: &str, headers: Vec<&str>, datatypes: Vec<FlexDataType>) -> Self {
@@ -100,10 +114,113 @@ impl FlexTable {
         self.series.len()
     }
 
+    pub fn record(&self, k: usize) -> FlexDataVector {
+        let data : Vec<FlexData> = self.series.iter()
+            .map(|s| s[k].get() )
+            .cloned()
+            .collect();
+        let index = self.series[0][k].get_index().clone();
+        let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
+        FlexDataVector::new( index, self.get_headers().clone(), datatypes, data)
+    }
+
+    pub fn remove_record(&mut self, k: usize) {
+        for series in self.series.iter_mut() {
+            series.remove(k);
+        }
+    }
+
+    pub fn remove_record_at(&mut self, index: &FlexIndex) {
+        for series in self.series.iter_mut() {
+            series.remove_at(index);
+        }
+    }
+
+    // Filtering
+
+    pub fn filter_all(&self, headers: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
+        let mut records : Vec<FlexDataVector> = Vec::new();
+        for k in 0..self.num_records() {
+            let rec = self.record(k);
+            if headers.iter().all(|lbl| f( rec.get(lbl).unwrap() )) {
+                records.push(rec);
+            }
+        }
+        Self::from_records( records )
+    }
+
+    pub fn filter_any(&self, headers: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
+        let mut records : Vec<FlexDataVector> = Vec::new();
+        for k in 0..self.num_records() {
+            let rec = self.record(k);
+            if headers.iter().any(|lbl| f( rec.get(lbl).unwrap() )) {
+                records.push(rec);
+            }
+        }
+        Self::from_records( records )
+    }
+
+    // NA Management
+
+    pub fn has_na(&self) -> bool {
+        self.series.iter()
+            .any(|s| s.has_na())
+    }
+
+    pub fn get_na(&self) -> Self {
+        self.filter_any( self.get_headers().as_slice(), |x: &FlexData| x == &FlexData::NA )
+    }
+
+    pub fn drop_na(&self) -> Self {
+        self.filter_all( self.get_headers().as_slice(), |x: &FlexData| x != &FlexData::NA )
+    }
+
+    // n-ary operation
+
+    pub fn nary_apply(&self, label: &str, datatype: FlexDataType, headers: &[&str], f: impl Fn(&[&FlexData]) -> FlexData) -> FlexSeries {
+        let mut data : Vec<FlexDataPoint> = Vec::new();
+        for k in 0..self.num_records() {
+            let rec = self.record(k);
+            let inputs : Vec<&FlexData> = headers.iter()
+                .map(|h| rec.get(h).unwrap())
+                .collect();
+            data.push( FlexDataPoint::new(rec.get_index().clone(), f( inputs.as_slice() ) ) );
+        }
+        FlexSeries::from_vec(label, datatype, data)
+    }
 }
 
-impl fmt::Display for FlexTable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//Implement [] operator
+impl Index<&str> for FlexTable {
+    type Output = FlexSeries;
+    fn index<'a>(&'a self, index: &str) -> &'a FlexSeries {
+        self.series.iter().find(|s| s.get_label() == index).expect("Label not found")
+    }
+}
+
+impl Iterator for FlexTable {
+    type Item = FlexDataVector;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iter_counter < self.num_records() {
+            self.iter_counter += 1;
+            let data : Vec<FlexData> = self.series.iter()
+                .map(|s| s[self.iter_counter].get() )
+                .cloned()
+                .collect();
+            let index = self.series[0][self.iter_counter].get_index().clone();
+            let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
+            let dv = FlexDataVector::new( index, self.get_headers().clone(), datatypes, data);
+            Some( dv )
+        } else {
+            self.iter_counter = 0;
+            None
+        }
+    }
+}
+
+impl std::fmt::Display for FlexTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut output;
         output = format!("{:>width$}", " ", width=5);
         for header in self.get_headers().iter() {
@@ -125,12 +242,12 @@ impl fmt::Display for FlexTable {
         for i in 0..self.num_records() {
             for j in 0..self.num_series() {
                 if j == 0 {
-                    match self.series[0][i as i32].get_index() {
+                    match self.series[0][i].get_index() {
                         FlexIndex::Uint(val) => { output = format!("{}{:>width$}", output, val, width=5); },
                         FlexIndex::Str(val) => { output = format!("{}{:>width$}", output, val, width=5); }
                     }
                 }
-                match self.series[j][i as i32].get() {
+                match self.series[j][i].get() {
                     FlexData::Str(val) => {
                         if val.len() >= 12 {
                             output = format!("{}{:>width$}", output, format!("{}..", &val[..10]), width=14);
@@ -138,7 +255,7 @@ impl fmt::Display for FlexTable {
                             output = format!("{}{:>width$}", output, val, width=14);
                         }
                     },
-                    FlexData::Dbl(val) => { output = format!("{}{:>width$}", output, val, width=14); },
+                    FlexData::Dbl(val) => { output = format!("{}{:>width$.5}", output, val, width=14); },
                     FlexData::Uint(val) => { output = format!("{}{:>width$}", output, val, width=14); },
                     FlexData::Int(val) => { output = format!("{}{:>width$}", output, val, width=14); },
                     FlexData::Char(val) => { output = format!("{}{:>width$}", output, val, width=14); }
@@ -148,25 +265,5 @@ impl fmt::Display for FlexTable {
             output.push_str("\n");
         }
         write!(f, "{}", output)
-    }
-}
-
-impl Iterator for FlexTable {
-    type Item = FlexDataVector;
-    
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.iter_counter < self.num_records() {
-            self.iter_counter += 1;
-            let data : Vec<FlexData> = self.series.iter()
-                .map(|s| s[self.iter_counter as i32].get() )
-                .cloned()
-                .collect();
-            let index = self.series[0][self.iter_counter as i32].get_index().clone();
-            let dv = FlexDataVector::new( index, self.get_headers().clone(), data);
-            Some( dv )
-        } else {
-            self.iter_counter = 0;
-            None
-        }
     }
 }
