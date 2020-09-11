@@ -2,6 +2,7 @@ extern crate datatoolkit;
 extern crate serde;
 
 use datatoolkit::{FlexTable, FlexData, FlexDataType};
+use datatoolkit::helper::{inverse, sum};
 
 #[test]
 fn csv_import() {
@@ -30,23 +31,14 @@ fn csv_import() {
     println!("{}", table.filter_all(&["FTHG","FTAG"], f));
 
     // Create new series as function of others
+    // using helper functions to condense the code
     let f = |xs: &[&FlexData]| {
-        let mut total = 0f64;
-        for x in xs.iter() {
-            match x {
-                FlexData::Dbl(val) => {
-                    if val != &0f64 {
-                        total += 1.0 / val;
-                    } else {
-                        return FlexData::NA;
-                    }
-                },
-                _ => { return FlexData::NA; }
-            }
-        }
-        FlexData::Dbl( total )
+        let v : Vec<FlexData> = xs.iter()
+            .map(|x| inverse(x))
+            .collect();
+        sum(v)
     };
-    let mut new_series = table.nary_apply(
+    let new_series = table.nary_apply(
         "B365Back",
         FlexDataType::Dbl,
         &["B365H","B365D","B365A"],

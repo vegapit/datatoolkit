@@ -7,6 +7,7 @@ mod flexseries;
 mod series;
 mod flexdatapoint;
 mod globals;
+pub mod helper;
 
 pub use self::flexseries::FlexSeries;
 pub use self::flextable::FlexTable;
