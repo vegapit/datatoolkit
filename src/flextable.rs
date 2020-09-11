@@ -2,6 +2,8 @@ use std::fs::File;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::ops::*;
+use prettytable::{Table, Row, Cell};
+
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 pub struct FlexTable{
@@ -188,6 +190,54 @@ impl FlexTable {
         }
         FlexSeries::from_vec(label, datatype, data)
     }
+
+    // pretty print
+    pub fn print(&self) {
+        let mut table = Table::new();
+        let mut headers_cells : Vec<Cell> = self.get_headers().iter()
+            .map(|h| Cell::new(h))
+            .collect();
+        headers_cells.insert(0, Cell::new(""));
+        table.add_row(Row::new(headers_cells));
+        let mut types_cells : Vec<Cell> = self.get_datatypes().iter()
+            .map(|datatype| {
+                match datatype {
+                    FlexDataType::Dbl => Cell::new("f64"),
+                    FlexDataType::Uint => Cell::new("u32"),
+                    FlexDataType::Int => Cell::new("i64"),
+                    FlexDataType::Char => Cell::new("char"),
+                    FlexDataType::Str => Cell::new("str"),
+                    FlexDataType::NA => Cell::new("n/a")
+                }
+            })
+            .collect();
+        types_cells.insert(0, Cell::new(""));
+        table.add_row(Row::new(types_cells));
+        for i in 0..self.num_records() {
+            let mut record_cells : Vec<Cell> = Vec::new();
+            for j in 0..self.num_series() {
+                if j == 0 {
+                    let cell = match self.series[0][i].get_index() {
+                        FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+                        FlexIndex::Str(val) => Cell::new( val.as_str() )
+                    };
+                    record_cells.push(cell);
+                }
+                let cell = match self.series[j][i].get() {
+                    FlexData::Str(val) => Cell::new( val.as_str() ),
+                    FlexData::Dbl(val) => Cell::new( format!("{:.5}", val).as_str() ),
+                    FlexData::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+                    FlexData::Int(val) => Cell::new( format!("{}", val).as_str() ),
+                    FlexData::Char(val) => Cell::new( format!("{}", val).as_str() ),
+                    FlexData::NA => Cell::new( "N/A" )
+                };
+                record_cells.push(cell);
+            }
+            table.add_row(Row::new(record_cells));
+        }
+        // Print the table to stdout
+        table.printstd();
+    }
 }
 
 //Implement [] operator
@@ -216,54 +266,5 @@ impl Iterator for FlexTable {
             self.iter_counter = 0;
             None
         }
-    }
-}
-
-impl std::fmt::Display for FlexTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut output;
-        output = format!("{:>width$}", " ", width=5);
-        for header in self.get_headers().iter() {
-            output = format!("{}{:>width$}", output, header, width=14);
-        }
-        output.push_str("\n");
-        output = format!("{}{:>width$}", output, " ", width=5);
-        for datatype in self.get_datatypes().iter() {
-            match datatype {
-                FlexDataType::Dbl => { output = format!("{}{:>width$}", output, "f64", width=14) },
-                FlexDataType::Uint => { output = format!("{}{:>width$}", output, "u32", width=14) },
-                FlexDataType::Int => { output = format!("{}{:>width$}", output, "i64", width=14) },
-                FlexDataType::Char => { output = format!("{}{:>width$}", output, "char", width=14) },
-                FlexDataType::Str => { output = format!("{}{:>width$}", output, "str", width=14) },
-                FlexDataType::NA => { output = format!("{}{:>width$}", output, "n/a", width=14) }
-            }
-        }
-        output.push_str("\n");
-        for i in 0..self.num_records() {
-            for j in 0..self.num_series() {
-                if j == 0 {
-                    match self.series[0][i].get_index() {
-                        FlexIndex::Uint(val) => { output = format!("{}{:>width$}", output, val, width=5); },
-                        FlexIndex::Str(val) => { output = format!("{}{:>width$}", output, val, width=5); }
-                    }
-                }
-                match self.series[j][i].get() {
-                    FlexData::Str(val) => {
-                        if val.len() >= 12 {
-                            output = format!("{}{:>width$}", output, format!("{}..", &val[..10]), width=14);
-                        } else {
-                            output = format!("{}{:>width$}", output, val, width=14);
-                        }
-                    },
-                    FlexData::Dbl(val) => { output = format!("{}{:>width$.5}", output, val, width=14); },
-                    FlexData::Uint(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                    FlexData::Int(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                    FlexData::Char(val) => { output = format!("{}{:>width$}", output, val, width=14); }
-                    FlexData::NA => { output = format!("{}{:>width$}", output, "N/A", width=14); }
-                }
-            }
-            output.push_str("\n");
-        }
-        write!(f, "{}", output)
     }
 }

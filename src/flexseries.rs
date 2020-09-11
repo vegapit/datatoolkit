@@ -1,5 +1,6 @@
 use crate::{FlexDataType, FlexDataPoint, FlexData, FlexIndex};
 use std::ops::*;
+use prettytable::{Table, Row, Cell};
 
 pub struct FlexSeries {
     label: String,
@@ -114,6 +115,41 @@ impl FlexSeries {
         self.filter(|x: &FlexDataPoint| x.get() != &FlexData::NA)
     }
 
+    // pretty print
+    pub fn print(&self) {
+        let mut table = Table::new();
+        table.add_row(Row::new(vec![
+            Cell::new(""),
+            Cell::new(self.label.as_str())
+        ]));
+        let type_cell = match self.datatype {
+            FlexDataType::Dbl => Cell::new("f64"),
+            FlexDataType::Uint => Cell::new("u32"),
+            FlexDataType::Int => Cell::new("i64"),
+            FlexDataType::Char => Cell::new("char"),
+            FlexDataType::Str => Cell::new("str"),
+            FlexDataType::NA => Cell::new("n/a")
+        };
+        table.add_row(Row::new(vec![Cell::new(""), type_cell]));
+        for i in 0..self.get_size() {
+            let index_cell = match self[i].get_index() {
+                FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexIndex::Str(val) => Cell::new( val.as_str() )
+            };
+            let data_cell = match self[i].get() {
+                FlexData::Str(val) => Cell::new( val.as_str() ),
+                FlexData::Dbl(val) => Cell::new( format!("{:.5}", val).as_str() ),
+                FlexData::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::Int(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::Char(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::NA => Cell::new( "N/A" )
+            };
+            table.add_row(Row::new(vec![index_cell,data_cell]));
+        }
+        // Print the table to stdout
+        table.printstd();
+    }
+
 }
 
 // Implement [] operator
@@ -132,47 +168,5 @@ impl Index<usize> for FlexSeries {
     type Output = FlexDataPoint;
     fn index<'a>(&'a self, index: usize) -> &'a FlexDataPoint {
         &self.data[index as usize]
-    }
-}
-
-// Console display
-impl std::fmt::Display for FlexSeries {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut output;
-        output = format!("{:>width$}", " ", width=5);
-        output = format!("{}{:>width$}", output, self.label, width=14);
-        output.push_str("\n");
-        output = format!("{}{:>width$}", output, " ", width=5);
-        match self.datatype {
-            FlexDataType::Dbl => { output = format!("{}{:>width$}", output, "f64", width=14) },
-            FlexDataType::Uint => { output = format!("{}{:>width$}", output, "u32", width=14) },
-            FlexDataType::Int => { output = format!("{}{:>width$}", output, "i64", width=14) },
-            FlexDataType::Char => { output = format!("{}{:>width$}", output, "char", width=14) },
-            FlexDataType::Str => { output = format!("{}{:>width$}", output, "str", width=14) },
-            FlexDataType::NA => { output = format!("{}{:>width$}", output, "n/a", width=14) }
-        }
-        output.push_str("\n");
-        for i in 0..self.get_size() {
-            match self.data[i].get_index() {
-                FlexIndex::Uint(val) => { output = format!("{}{:>width$}", output, val, width=5); },
-                FlexIndex::Str(val) => { output = format!("{}{:>width$}", output, val, width=5); }
-            }
-            match self.data[i].get() {
-                FlexData::Str(val) => {
-                    if val.len() >= 12 {
-                        output = format!("{}{:>width$}", output, format!("{}..", &val[..10]), width=14);
-                    } else {
-                        output = format!("{}{:>width$}", output, val, width=14);
-                    }
-                },
-                FlexData::Dbl(val) => { output = format!("{}{:>width$.5}", output, val, width=14); },
-                FlexData::Uint(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                FlexData::Int(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                FlexData::Char(val) => { output = format!("{}{:>width$}", output, val, width=14); }
-                FlexData::NA => { output = format!("{}{:>width$}", output, "N/A", width=14); }
-            }
-            output.push_str("\n");
-        }
-        write!(f, "{}", output)
     }
 }

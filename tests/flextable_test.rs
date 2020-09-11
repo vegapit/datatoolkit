@@ -24,11 +24,11 @@ fn csv_import() {
 
     // All games where one team scored more than 3 goals
     let f = |x: &FlexData| x > &FlexData::Uint(3);
-    println!("{}", table.filter_any(&["FTHG","FTAG"], f));
+    table.filter_any(&["FTHG","FTAG"], f).print();
 
     // All games where no goals were scored
     let f = |x: &FlexData| x == &FlexData::Uint(0);
-    println!("{}", table.filter_all(&["FTHG","FTAG"], f));
+    table.filter_all(&["FTHG","FTAG"], f).print();
 
     // Create new series as function of others
     // using helper functions to condense the code
@@ -44,9 +44,8 @@ fn csv_import() {
         &["B365H","B365D","B365A"],
         f
     );
-    println!("{}", new_series);
+    new_series.print();
 
-    println!("{}", table.record(24)); // 25th row
+    table.record(24).print(); // 25th row
     println!("{:?}", table["Date"][-1]); // Last datapoint of Series["Date"]
-    
 }

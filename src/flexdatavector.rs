@@ -1,5 +1,6 @@
 use std::ops::*;
 use crate::{FlexIndex, FlexData, FlexDataType};
+use prettytable::{Table, Row, Cell};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexDataVector {
@@ -67,6 +68,48 @@ impl FlexDataVector {
             .is_some()
     }
 
+    pub fn print(&self) {
+        let mut table = Table::new();
+        let mut headers_cells : Vec<Cell> = self.labels.iter()
+            .map(|h| Cell::new(h))
+            .collect();
+        headers_cells.insert(0, Cell::new(""));
+        table.add_row(Row::new(headers_cells));
+        let mut types_cells : Vec<Cell> = self.get_datatypes().iter()
+            .map(|datatype| {
+                match datatype {
+                    FlexDataType::Dbl => Cell::new("f64"),
+                    FlexDataType::Uint => Cell::new("u32"),
+                    FlexDataType::Int => Cell::new("i64"),
+                    FlexDataType::Char => Cell::new("char"),
+                    FlexDataType::Str => Cell::new("str"),
+                    FlexDataType::NA => Cell::new("n/a")
+                }
+            })
+            .collect();
+        types_cells.insert(0, Cell::new(""));
+        table.add_row(Row::new(types_cells));
+        let mut record_cells : Vec<Cell> = Vec::new();
+        let index_cell = match &self.index {
+            FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+            FlexIndex::Str(val) => Cell::new( val.as_str() )
+        };
+        record_cells.push(index_cell);
+        for k in 0..self.get_size() {
+            let cell = match &self.data[k] {
+                FlexData::Str(val) => Cell::new( val.as_str() ),
+                FlexData::Dbl(val) => Cell::new( format!("{:.5}", val).as_str() ),
+                FlexData::Uint(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::Int(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::Char(val) => Cell::new( format!("{}", val).as_str() ),
+                FlexData::NA => Cell::new( "N/A" )
+            };
+            record_cells.push(cell);
+        }
+        table.add_row(Row::new(record_cells));
+        // Print the table to stdout
+        table.printstd();
+    }
 }
 
 // Implement [] operator
@@ -84,50 +127,3 @@ impl PartialEq for FlexDataVector {
 }
 
 impl Eq for FlexDataVector{}
-
-impl std::fmt::Display for FlexDataVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut output;
-        output = format!("{:>width$}", " ", width=5);
-        for header in self.labels.iter() {
-            output = format!("{}{:>width$}", output, header, width=14);
-        }
-        output.push_str("\n");
-        output = format!("{}{:>width$}", output, " ", width=5);
-        for datatype in self.datatypes.iter() {
-            match datatype {
-                FlexDataType::Dbl => { output = format!("{}{:>width$}", output, "f64", width=14) },
-                FlexDataType::Uint => { output = format!("{}{:>width$}", output, "u32", width=14) },
-                FlexDataType::Int => { output = format!("{}{:>width$}", output, "i64", width=14) },
-                FlexDataType::Char => { output = format!("{}{:>width$}", output, "char", width=14) },
-                FlexDataType::Str => { output = format!("{}{:>width$}", output, "str", width=14) },
-                FlexDataType::NA => { output = format!("{}{:>width$}", output, "n/a", width=14) }
-            }
-        }
-        output.push_str("\n");
-        for i in 0..self.data.len() {
-            if i == 0 {
-                match &self.index {
-                    FlexIndex::Uint(val) => { output = format!("{}{:>width$}", output, val, width=5); },
-                    FlexIndex::Str(val) => { output = format!("{}{:>width$}", output, val, width=5); }
-                }
-            }
-            match &self.data[i] {
-                FlexData::Str(val) => {
-                    if val.len() >= 12 {
-                        output = format!("{}{:>width$}", output, format!("{}..", &val[..10]), width=14);
-                    } else {
-                        output = format!("{}{:>width$}", output, val, width=14);
-                    }
-                },
-                FlexData::Dbl(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                FlexData::Uint(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                FlexData::Int(val) => { output = format!("{}{:>width$}", output, val, width=14); },
-                FlexData::Char(val) => { output = format!("{}{:>width$}", output, val, width=14); }
-                FlexData::NA => { output = format!("{}{:>width$}", output, "N/A", width=14); }
-            }
-        }
-        output.push_str("\n");
-        write!(f, "{}", output)
-    }
-}
