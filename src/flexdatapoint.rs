@@ -1,17 +1,15 @@
-use crate::FlexData;
+use crate::{FlexData, FlexIndex};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FlexDataPoint<T> {
-    id: String,
-    index: T,
+pub struct FlexDataPoint {
+    index: FlexIndex,
     data: FlexData
 }
 
-impl<T> FlexDataPoint<T> {
+impl FlexDataPoint {
 
-    pub fn new(id: &str, index: T, data: FlexData) -> Self {
+    pub fn new(index: FlexIndex, data: FlexData) -> Self {
         Self {
-            id: id.to_string(),
             index: index,
             data: data
         }
@@ -25,7 +23,36 @@ impl<T> FlexDataPoint<T> {
         self.data = data
     }
 
-    pub fn get_id(&self) -> &str {
-        self.id.as_str()
+    pub fn get_index(&self) -> &FlexIndex {
+        &self.index
+    }
+
+    pub fn set_index(&mut self, index: FlexIndex) {
+        self.index = index;
+    }
+
+}
+
+impl PartialEq for FlexDataPoint {
+    fn eq(&self, other: &FlexDataPoint) -> bool {
+        self.index == other.index && self.data == other.data
+    }
+}
+
+impl Eq for FlexDataPoint{}
+
+impl PartialOrd for FlexDataPoint {
+    fn partial_cmp(&self, other: &FlexDataPoint) -> Option<std::cmp::Ordering> {
+        if self.index == other.index {
+            Some( self.index.cmp(&other.index) )
+        } else {
+            None
+        }
+    }
+}
+
+impl Ord for FlexDataPoint {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.index.cmp(&other.index)
     }
 }

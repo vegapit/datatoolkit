@@ -1,52 +1,56 @@
-use std::cmp::Ordering;
-use std::cmp::Ord;
-use crate::FlexDataPoint;
+use crate::{FlexIndex, FlexData};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FlexDataVector<T> {
-    index: T,
-    data: Vec<FlexDataPoint<T>>
+pub struct FlexDataVector {
+    index: FlexIndex,
+    labels: Vec<String>,
+    data: Vec<FlexData>
 }
 
-impl<T: Clone> FlexDataVector<T> {
+impl FlexDataVector {
 
-    pub fn new(index: T, data: Vec<FlexDataPoint<T>>) -> Self {
+    pub fn new(index: FlexIndex, labels: Vec<&str>, data: Vec<FlexData>) -> Self {
         Self {
             index: index,
+            labels: labels.into_iter().map(|lbl| lbl.to_string()).collect(),
             data: data
         }
     }
 
-    pub fn get_index(&self) -> &T {
+    pub fn get_index(&self) -> &FlexIndex {
         &self.index
     }
 
-    pub fn get(&self, id: &str) -> Option<&FlexDataPoint<T>> {
-        self.data.iter().find(|&fdp| fdp.get_id() == id)
+    pub fn set_index(&mut self, index: FlexIndex) {
+        self.index = index;
     }
 
-    pub fn set(&mut self, dp: FlexDataPoint<T>) {
-        self.data.push(dp);
+    pub fn get(&self, label: &str) -> Option<&FlexData> {
+        self.labels.iter()
+            .position(|lbl| lbl == label)
+            .map(|i| &self.data[i])
     }
 
-    pub fn labels(&self) -> Vec<String> {
-        self.data.iter().map(|fdp| fdp.get_id().to_string()).collect::<Vec<String>>()
+    pub fn set(&mut self, label:&str, data: FlexData) {
+        if let Some(i) = self.labels.iter().position(|lbl| lbl == label) {
+            self.data[i] = data;
+        }
     }
 
-    pub fn contains(&self, id: &str) -> bool {
-        self.data.iter().position(|fdp| fdp.get_id() == id).is_some()
+    pub fn labels(&self) -> &Vec<String> {
+        &self.labels
+    }
+
+    pub fn contains(&self, label: &str) -> bool {
+        self.labels.iter()
+            .position(|lbl| lbl == label)
+            .is_some()
     }
 
 }
 
-impl<T: PartialEq> PartialEq for FlexDataVector<T> {
-    fn eq(&self, other: &FlexDataVector<T>) -> bool {
-        self.index == other.index
-    }
-}
-
-impl<T: Ord> PartialOrd for FlexDataVector<T> {
-    fn partial_cmp(&self, other: &FlexDataVector<T>) -> Option<Ordering> {
-        Some( self.index.cmp(&other.index) )
+impl PartialEq for FlexDataVector {
+    fn eq(&self, other: &FlexDataVector) -> bool {
+        self.index == other.index && self.data.iter().zip( other.data.iter() ).all(|(a,b)| a == b)
     }
 }

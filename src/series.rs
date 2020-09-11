@@ -133,9 +133,9 @@ impl<T: Ord + Clone,U: PartialOrd + AddAssign + From<u8> + Copy> Series<T,U> {
 
 }
 
+// Implement [] operator
 impl<T,U> Index<i32> for Series<T,U> {
     type Output = DataPoint<T,U>;
-
     fn index<'a>(&'a self, index: i32) -> &'a DataPoint<T,U> {
         if index >= 0 {
             &self.data[index as usize]

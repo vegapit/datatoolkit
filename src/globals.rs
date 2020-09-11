@@ -1,4 +1,4 @@
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, PartialOrd)]
 pub enum FlexData {
     Str(String),
     Uint(u32),
@@ -16,4 +16,16 @@ pub enum FlexDataType {
     Dbl,
     Char,
     NA
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FlexIndex {
+    Str(String),
+    Uint(usize)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum FlexIndexType {
+    Str,
+    Uint
 }

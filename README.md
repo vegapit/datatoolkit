@@ -38,7 +38,7 @@ assert_eq!( ts[-1].get(), &116 ); // Last element
 assert_eq!( ts[0].get(), &122 ); // First element
 ```
 
-It also can handle data from multiple types thanks to flexible data structures like `FlexTable`:
+Similarly to Pandas in Python, it also handles data from multiple types thanks to flexible data structures like `FlexTable`:
 
 ```rust
 let headers = vec!["Div","Date","HomeTeam","AwayTeam","FTHG","FTAG","B365H","B365D","B365A"];
@@ -57,6 +57,6 @@ let table = FlexTable::from_csv("./tests/E3.csv", headers, datatypes);
 println!("{}", table);
 ```
 
-All data missing or not fitting the type requirements are assigned a type of `FlexDataType:NA`
+All data missing or not fitting the type requirements are assigned a type of `FlexDataType:NA`. Please refer to the `tests` folder for more usage examples.
 
-Please refer to the `tests` folder for more usage examples.
+Bear in mind that this library is in early development so the interface could vary over time.
