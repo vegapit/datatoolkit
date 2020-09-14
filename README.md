@@ -45,7 +45,7 @@ Similarly to Pandas in Python, it also handles data from multiple types thanks t
 // df = pd.read_csv('./tests/E3.csv')
 // df = df[["Div","Date","Time","HomeTeam","AwayTeam","FTHG","FTAG","B365H","B365D","B365A"]]
 
-let headers = vec!["Div","Date","HomeTeam","AwayTeam","FTHG","FTAG","B365H","B365D","B365A"];
+let headers = vec!["Div","Date","Time","HomeTeam","AwayTeam","FTHG","FTAG","B365H","B365D","B365A"];
 let datatypes = vec![
     FlexDataType::Str,
     FlexDataType::Str,
