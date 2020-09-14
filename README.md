@@ -51,6 +51,7 @@ let datatypes = vec![
     FlexDataType::Str,
     FlexDataType::Str,
     FlexDataType::Str,
+    FlexDataType::Str,
     FlexDataType::Uint,
     FlexDataType::Uint,
     FlexDataType::Dbl,
