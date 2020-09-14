@@ -1,4 +1,5 @@
-use crate::{FlexData, FlexIndex};
+use crate::{FlexData, FlexDataType, FlexIndex};
+use crate::helper::convert;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexDataPoint {
@@ -31,9 +32,14 @@ impl FlexDataPoint {
         self.index = index;
     }
 
-    pub fn apply(&self, f: impl Fn(&FlexData) -> FlexData) -> Self {
-        Self::new(self.index.clone(), f(&self.data))
+    pub fn apply(&mut self, f: impl Fn(&FlexData) -> FlexData) {
+        self.data = f(&self.data)
     }
+
+    pub fn as_type(&mut self, datatype: &FlexDataType) {
+        self.data = convert(&self.data, datatype);
+    }
+
 }
 
 impl PartialEq for FlexDataPoint {

@@ -6,12 +6,15 @@ use prettytable::{Table, Row, Cell};
 
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexTable{
     iter_counter: usize,
     series: Vec<FlexSeries>
 }
 
 impl FlexTable {
+
+    // Constructors
 
     pub fn new( series: Vec<FlexSeries> ) -> Self {
         assert!( series.iter().map(|s| s.get_size()).min() == series.iter().map(|s| s.get_size()).max() );
@@ -27,9 +30,9 @@ impl FlexTable {
         let mut series : Vec<FlexSeries> = headers.iter().zip( datatypes.into_iter() )
             .map(|(h,d)| FlexSeries::new(h, d))
             .collect();
-        for counter in 0..records.len() {
+        for record in records.iter() {
             for k in 0..headers.len() {
-                series[k].insert_update( FlexDataPoint::new( FlexIndex::Uint(counter), records[counter][k].clone()) );
+                series[k].insert_update( FlexDataPoint::new( record.get_index().clone(), record[k].clone()) );
             }
         }
         Self::new( series )
@@ -96,6 +99,8 @@ impl FlexTable {
         Self::new( series )
     }
 
+    // Getters
+
     pub fn get_headers(&self) -> Vec<&str> {
         self.series.iter()
             .map(|s| s.get_label())
@@ -106,6 +111,13 @@ impl FlexTable {
         self.series.iter()
             .map(|s| s.get_datatype())
             .collect()
+    }
+
+    pub fn get_indices(&self) -> Vec<&FlexIndex> {
+        self.series.iter()
+            .last()
+            .expect("Table contains zero series")
+            .get_indices()
     }
 
     pub fn num_records(&self) -> usize {
@@ -124,6 +136,13 @@ impl FlexTable {
         let index = self.series[0][k].get_index().clone();
         let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
         FlexDataVector::new( index, self.get_headers().clone(), datatypes, data)
+    }
+
+    // Modifiers
+
+    pub fn add_series(&mut self, series: FlexSeries) {
+        let adj_series = series.align_to( self.get_indices() );
+        self.series.push( adj_series );
     }
 
     pub fn remove_record(&mut self, k: usize) {
@@ -192,7 +211,9 @@ impl FlexTable {
     }
 
     // pretty print
-    pub fn print(&self) {
+
+    pub fn print(&self, max_size: Option<usize>) {
+        let size = max_size.map(|val| val.min(self.num_records()) ).unwrap_or( self.num_records() );
         let mut table = Table::new();
         let mut headers_cells : Vec<Cell> = self.get_headers().iter()
             .map(|h| Cell::new(h))
@@ -213,7 +234,7 @@ impl FlexTable {
             .collect();
         types_cells.insert(0, Cell::new(""));
         table.add_row(Row::new(types_cells));
-        for i in 0..self.num_records() {
+        for i in 0..size {
             let mut record_cells : Vec<Cell> = Vec::new();
             for j in 0..self.num_series() {
                 if j == 0 {

@@ -1,7 +1,9 @@
 use crate::{FlexDataType, FlexDataPoint, FlexData, FlexIndex};
+use crate::helper::convert;
 use std::ops::*;
 use prettytable::{Table, Row, Cell};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexSeries {
     label: String,
     datatype: FlexDataType,
@@ -48,10 +50,24 @@ impl FlexSeries {
         self.data.len()
     }
 
+    pub fn get_indices(&self) -> Vec<&FlexIndex> {
+        self.data.iter()
+            .map(|fdp| fdp.get_index())
+            .collect()
+    }
+
+    // Selecting
+
     pub fn at(&self, index: &FlexIndex) -> Option<&FlexDataPoint> {
         self.data.iter()
             .position(|fdp| fdp.get_index() == index)
             .map(|i| &self.data[i] )
+    }
+
+    pub fn contains(&self, index: &FlexIndex) -> bool {
+        self.data.iter()
+            .position(|fdp| fdp.get_index() == index)
+            .is_some()
     }
 
     // Data operations
@@ -81,13 +97,28 @@ impl FlexSeries {
         }
     }
 
+    pub fn as_type(&mut self, datatype: &FlexDataType) {
+        for fdp in self.data.iter_mut() {
+            fdp.as_type( datatype );
+        }
+    }
+
     // Transformation
 
-    pub fn apply(&self, f: impl Fn(&FlexData) -> FlexData) -> Self {
-        let data : Vec<FlexDataPoint> = self.data.iter()
-            .map(|fdp| fdp.apply(&f))
-            .collect();
-        Self::from_vec(self.label.as_str(), self.datatype.clone(), data)
+    pub fn align_to(&self, indices: Vec<&FlexIndex>) -> Self {
+        let mut series = self.clone();
+        for index in indices.iter() {
+            if !series.contains( index ) {
+                series.insert_update( FlexDataPoint::new((*index).clone(), FlexData::NA) );
+            }
+        }
+        series
+    }
+
+    pub fn apply(&mut self, f: impl Fn(&FlexData) -> FlexData) {
+        for fdp in self.data.iter_mut() {
+            fdp.apply(&f);
+        }
     }
 
     // Filtering
@@ -116,7 +147,8 @@ impl FlexSeries {
     }
 
     // pretty print
-    pub fn print(&self) {
+    pub fn print(&self, max_size: Option<usize>) {
+        let size = max_size.map(|val| val.min(self.get_size()) ).unwrap_or( self.get_size() );
         let mut table = Table::new();
         table.add_row(Row::new(vec![
             Cell::new(""),
@@ -131,7 +163,7 @@ impl FlexSeries {
             FlexDataType::NA => Cell::new("n/a")
         };
         table.add_row(Row::new(vec![Cell::new(""), type_cell]));
-        for i in 0..self.get_size() {
+        for i in 0..size {
             let index_cell = match self[i].get_index() {
                 FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
                 FlexIndex::Str(val) => Cell::new( val.as_str() )
@@ -150,6 +182,29 @@ impl FlexSeries {
         table.printstd();
     }
 
+    // Operations
+
+    pub fn add(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+        let mut data = self.data.clone();
+        for fdp in data.iter_mut() {
+            if let Some( other_fdp ) = other.at( fdp.get_index() ) {
+                let val = &convert( fdp.get(), datatype ) + &convert( other_fdp.get(), datatype );
+                fdp.set( val );
+            }
+        }
+        FlexSeries::from_vec(label, datatype.clone(), data)
+    }
+
+    pub fn sub(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+        let mut data = self.data.clone();
+        for fdp in data.iter_mut() {
+            if let Some( other_fdp ) = other.at( fdp.get_index() ) {
+                let val = &convert( fdp.get(), datatype ) - &convert( other_fdp.get(), datatype );
+                fdp.set( val );
+            }
+        }
+        FlexSeries::from_vec(label, datatype.clone(), data)
+    }
 }
 
 // Implement [] operator
