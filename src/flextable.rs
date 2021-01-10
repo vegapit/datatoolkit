@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::ops::*;
 use prettytable::{Table, Row, Cell};
 
@@ -97,6 +97,35 @@ impl FlexTable {
             }
         }
         Self::new( series )
+    }
+
+    pub fn to_csv(&self, filepath: &str) {
+        let mut file = std::fs::File::create(filepath).expect("File creation failed");
+        file.write_all(self.get_headers().join(",").as_bytes()).expect("Writing failed");
+        file.write_all("\n".to_string().as_bytes()).expect("Writing failed");
+        for i in 0..self.num_records() {
+            let mut row : Vec<String> = Vec::new();
+            for j in 0..self.num_series() {
+                if j == 0 {
+                    let cell = match self.series[0][i].get_index() {
+                        FlexIndex::Uint(val) => format!("{}", val),
+                        FlexIndex::Str(val) => val.clone()
+                    };
+                    row.push(cell);
+                }
+                let cell = match self.series[j][i].get() {
+                    FlexData::Str(val) => val.clone(),
+                    FlexData::Dbl(val) => format!("{:.5}", val),
+                    FlexData::Uint(val) => format!("{}", val),
+                    FlexData::Int(val) => format!("{}", val),
+                    FlexData::Char(val) => format!("{}", val),
+                    FlexData::NA => "N/A".to_string()
+                };
+                row.push(cell);
+            }
+            file.write_all(row.join(",").as_bytes()).expect("Writing failed");
+            file.write_all("\n".to_string().as_bytes()).expect("Writing failed");
+        }
     }
 
     // Getters
