@@ -101,6 +101,7 @@ impl FlexTable {
 
     pub fn to_csv(&self, filepath: &str) {
         let mut file = std::fs::File::create(filepath).expect("File creation failed");
+        file.write_all("index,".as_bytes()).expect("Writing failed");
         file.write_all(self.get_headers().join(",").as_bytes()).expect("Writing failed");
         file.write_all("\n".to_string().as_bytes()).expect("Writing failed");
         for i in 0..self.num_records() {

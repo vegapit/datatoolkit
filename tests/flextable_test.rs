@@ -49,5 +49,5 @@ fn csv_import() {
     // Pandas equivalent: print( df.iloc[24,:] )
     table.record(24).print(); // 25th row
 
-    //table.to_csv("test.csv");
+    table.to_csv("test.csv");
 }
