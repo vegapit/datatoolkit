@@ -1,4 +1,5 @@
 use std::ops::*;
+use std::convert::TryFrom;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FlexDataType {
@@ -18,6 +19,79 @@ pub enum FlexData {
     Dbl(f64),
     Char(char),
     NA
+}
+
+// From implementation
+impl From<String> for FlexData {
+    fn from(value: String) -> FlexData {
+        FlexData::Str(value)
+    }
+}
+
+impl From<u32> for FlexData {
+    fn from(value: u32) -> FlexData {
+        FlexData::Uint(value)
+    }
+}
+
+impl From<i64> for FlexData {
+    fn from(value: i64) -> FlexData {
+        FlexData::Int(value)
+    }
+}
+
+impl From<f64> for FlexData {
+    fn from(value: f64) -> FlexData {
+        FlexData::Dbl(value)
+    }
+}
+
+impl From<char> for FlexData {
+    fn from(value: char) -> FlexData {
+        FlexData::Char(value)
+    }
+}
+
+// Into Implementation 
+
+impl TryFrom<FlexData> for String {
+    type Error = &'static str;
+    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+        match value {
+            FlexData::Str(v) => Ok(v),
+            _ => Err("Only FlexData::Str can be extracted to String")
+        }
+    }
+}
+
+impl TryFrom<FlexData> for f64 {
+    type Error = &'static str;
+    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+        match value {
+            FlexData::Dbl(v) => Ok(v),
+            _ => Err("Only FlexData::Dbl can be extracted to f64")
+        }
+    }
+}
+
+impl TryFrom<FlexData> for u32 {
+    type Error = &'static str;
+    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+        match value {
+            FlexData::Uint(v) => Ok(v),
+            _ => Err("Only FlexData::Uint can be extracted to u32")
+        }
+    }
+}
+
+impl TryFrom<FlexData> for i64 {
+    type Error = &'static str;
+    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+        match value {
+            FlexData::Int(v) => Ok(v),
+            _ => Err("Only FlexData::Int can be extracted to i64")
+        }
+    }
 }
 
 impl Add for &FlexData {
