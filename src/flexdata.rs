@@ -54,41 +54,41 @@ impl From<char> for FlexData {
 
 // Into Implementation 
 
-impl TryFrom<FlexData> for String {
+impl TryFrom<&FlexData> for String {
     type Error = &'static str;
-    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+    fn try_from(value: &FlexData) -> Result<Self, Self::Error> {
         match value {
-            FlexData::Str(v) => Ok(v),
+            FlexData::Str(v) => Ok(v.to_string()),
             _ => Err("Only FlexData::Str can be extracted to String")
         }
     }
 }
 
-impl TryFrom<FlexData> for f64 {
+impl TryFrom<&FlexData> for f64 {
     type Error = &'static str;
-    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+    fn try_from(value: &FlexData) -> Result<Self, Self::Error> {
         match value {
-            FlexData::Dbl(v) => Ok(v),
+            FlexData::Dbl(v) => Ok(*v),
             _ => Err("Only FlexData::Dbl can be extracted to f64")
         }
     }
 }
 
-impl TryFrom<FlexData> for u32 {
+impl TryFrom<&FlexData> for u32 {
     type Error = &'static str;
-    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+    fn try_from(value: &FlexData) -> Result<Self, Self::Error> {
         match value {
-            FlexData::Uint(v) => Ok(v),
+            FlexData::Uint(v) => Ok(*v),
             _ => Err("Only FlexData::Uint can be extracted to u32")
         }
     }
 }
 
-impl TryFrom<FlexData> for i64 {
+impl TryFrom<&FlexData> for i64 {
     type Error = &'static str;
-    fn try_from(value: FlexData) -> Result<Self, Self::Error> {
+    fn try_from(value: &FlexData) -> Result<Self, Self::Error> {
         match value {
-            FlexData::Int(v) => Ok(v),
+            FlexData::Int(v) => Ok(*v),
             _ => Err("Only FlexData::Int can be extracted to i64")
         }
     }
