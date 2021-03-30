@@ -191,6 +191,30 @@ impl Div for &FlexData {
                     _ => FlexData::NA
                 }
             },
+            FlexData::Int(val) => {
+                match other {
+                    FlexData::Int(other_val) => {
+                        if other_val != &0i64 {
+                            FlexData::Int(val / other_val)
+                        } else {
+                            FlexData::NA
+                        }
+                    },
+                    _ => FlexData::NA
+                }
+            },
+            FlexData::Uint(val) => {
+                match other {
+                    FlexData::Uint(other_val) => {
+                        if other_val != &0u32 {
+                            FlexData::Uint(val / other_val)
+                        } else {
+                            FlexData::NA
+                        }
+                    },
+                    _ => FlexData::NA
+                }
+            },
             _ => FlexData::NA
         }
     }
