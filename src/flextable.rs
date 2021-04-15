@@ -303,8 +303,7 @@ impl Iterator for FlexTable {
     type Item = FlexDataVector;
     
     fn next(&mut self) -> Option<Self::Item> {
-        if self.iter_counter <= self.num_records() - 1 {
-            self.iter_counter += 1;
+        if self.iter_counter < self.num_records() {
             let data : Vec<FlexData> = self.series.iter()
                 .map(|s| s[self.iter_counter].get() )
                 .cloned()
@@ -312,6 +311,7 @@ impl Iterator for FlexTable {
             let index = self.series[0][self.iter_counter].get_index().clone();
             let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
             let dv = FlexDataVector::new( index, self.get_headers().clone(), datatypes, data);
+            self.iter_counter += 1;
             Some( dv )
         } else {
             self.iter_counter = 0;
