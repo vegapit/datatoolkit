@@ -29,6 +29,19 @@ pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
                 _ => FlexData::NA
             }
         },
+        FlexData::Str( val ) => {
+            match datatype {
+                FlexDataType::Str => FlexData::Str(val.to_string()),
+                _ => FlexData::NA
+            }
+        },
+        FlexData::Char( val ) => {
+            match datatype {
+                FlexDataType::Str => FlexData::Str( format!("{}", val) ),
+                FlexDataType::Char => FlexData::Char( *val ),
+                _ => FlexData::NA
+            }
+        },
         _ => FlexData::NA
     }
 }

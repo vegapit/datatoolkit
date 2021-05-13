@@ -1,6 +1,7 @@
 use crate::{FlexDataType, FlexDataPoint, FlexData, FlexIndex};
 use crate::helper::convert;
 use std::ops::*;
+use std::convert::TryFrom;
 use prettytable::{Table, Row, Cell};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,6 +54,12 @@ impl FlexSeries {
     pub fn get_indices(&self) -> Vec<&FlexIndex> {
         self.data.iter()
             .map(|fdp| fdp.get_index())
+            .collect()
+    }
+
+    pub fn get_data(&self) -> Vec<&FlexData> {
+        self.data.iter()
+            .map(|fdp| fdp.get())
             .collect()
     }
 
@@ -146,7 +153,76 @@ impl FlexSeries {
         self.filter(|x: &FlexDataPoint| x.get() != &FlexData::NA)
     }
 
+    // Statistics
+
+    pub fn sum(&self) -> FlexData {
+        match self.datatype {
+            FlexDataType::Int => self.data.iter().fold( FlexData::Int(0), |acc, fdp| &acc + fdp.get()),
+            FlexDataType::Uint => self.data.iter().fold( FlexData::Uint(0), |acc, fdp| &acc + fdp.get()),
+            FlexDataType::Dbl => self.data.iter().fold( FlexData::Dbl(0f64), |acc, fdp| &acc + fdp.get()),
+            _ => FlexData::NA 
+        }
+    }
+
+    pub fn mean(&self) -> FlexData {
+        if self.get_size() == 0 {
+            FlexData::NA
+        } else {
+            match self.sum() {
+                FlexData::Int(val) => FlexData::Dbl( (val as f64) / (self.get_size() as f64) ),
+                FlexData::Uint(val) => FlexData::Dbl( (val as f64) / (self.get_size() as f64) ),
+                FlexData::Dbl(val) => FlexData::Dbl( val / (self.get_size() as f64) ),
+                _ => FlexData::NA
+            }
+        }
+    }
+
+    pub fn covariance(&self, other: &FlexSeries, is_sample: bool) -> FlexData {
+        if self.get_size() == 0 || other.get_size() == 0 || self.get_size() != other.get_size() {
+            FlexData::NA
+        } else {
+            let mut centered_series1 = self.clone();
+            centered_series1.as_type(&FlexDataType::Dbl);
+            let m1 = centered_series1.mean();
+            centered_series1.apply(|x: &FlexData| x - &m1 );
+
+            let mut centered_series2 = other.clone();
+            centered_series2.as_type(&FlexDataType::Dbl);
+            let m2 = centered_series2.mean();
+            centered_series2.apply(|x: &FlexData| x - &m2 );
+
+            let centered_prod_series = centered_series1.prod("product", &FlexDataType::Dbl, &centered_series2);
+
+            if is_sample {
+                match centered_prod_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / ((centered_prod_series.get_size() - 1) as f64) ),
+                    _ => FlexData::NA
+                }
+            } else {
+                match centered_prod_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / (centered_prod_series.get_size() as f64) ),
+                    _ => FlexData::NA
+                }
+            }
+        }
+    }
+
+    pub fn variance(&self, is_sample: bool) -> FlexData {
+        self.covariance(&self, is_sample)
+    }
+
+    pub fn pearson_correlation(&self, other: &FlexSeries, is_sample: bool) -> FlexData {
+        let cov = self.covariance(other, is_sample);
+        let v1 = f64::try_from( &self.variance(is_sample) ).unwrap();
+        let v2 = f64::try_from( &other.variance(is_sample) ).unwrap();
+        match cov {
+            FlexData::Dbl(val) => FlexData::Dbl( val / ( v1.sqrt() * v2.sqrt() ) ),
+            _ => FlexData::NA
+        }
+    }
+
     // pretty print
+
     pub fn print(&self, max_size: Option<usize>) {
         let size = max_size.map(|val| val.min(self.get_size()) ).unwrap_or( self.get_size() );
         let mut table = Table::new();
@@ -200,6 +276,17 @@ impl FlexSeries {
         for fdp in data.iter_mut() {
             if let Some( other_fdp ) = other.at( fdp.get_index() ) {
                 let val = &convert( fdp.get(), datatype ) - &convert( other_fdp.get(), datatype );
+                fdp.set( val );
+            }
+        }
+        FlexSeries::from_vec(label, datatype.clone(), data)
+    }
+
+    pub fn prod(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+        let mut data = self.data.clone();
+        for fdp in data.iter_mut() {
+            if let Some( other_fdp ) = other.at( fdp.get_index() ) {
+                let val = &convert( fdp.get(), datatype ) * &convert( other_fdp.get(), datatype );
                 fdp.set( val );
             }
         }

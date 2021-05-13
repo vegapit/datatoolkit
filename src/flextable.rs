@@ -1,9 +1,11 @@
 use std::fs::File;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::io::{BufRead, BufReader, Write};
 use std::ops::*;
+use std::convert::TryFrom;
 use prettytable::{Table, Row, Cell};
 
+use crate::helper::convert;
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -240,6 +242,32 @@ impl FlexTable {
         FlexSeries::from_vec(label, datatype, data)
     }
 
+    // grouping 
+
+    pub fn group_by(&self, header: &str) -> HashMap<String, Self> {
+        let mut groups : HashMap<String, Self> = HashMap::new();
+        let series = self.series.iter().find(|s| s.get_label() == header).expect("Header not found");
+        let mut value_set : HashSet<String> = HashSet::new();
+        for fd in series.get_data() {
+            let val : String = String::try_from( &convert(fd, &FlexDataType::Str) ).unwrap();
+            value_set.insert( val );
+        }
+        for val in value_set.into_iter() {
+            let f = |x: &FlexData| x == &FlexData::Str(val.clone());
+            let ftable = self.filter_any(&[header], f);
+            groups.insert(val,ftable);
+        }
+        groups
+    }
+
+    // statistics
+
+    pub fn pearson_correlation(&self, header1: &str, header2: &str, is_sample: bool) -> FlexData {
+        let series1 = self.series.iter().find(|s| s.get_label() == header1).expect("Label1 not found");
+        let series2 = self.series.iter().find(|s| s.get_label() == header2).expect("Label2 not found");
+        series1.pearson_correlation(&series2, is_sample)
+    }
+
     // pretty print
 
     pub fn print(&self, max_size: Option<usize>) {
@@ -292,6 +320,7 @@ impl FlexTable {
 }
 
 //Implement [] operator
+
 impl Index<&str> for FlexTable {
     type Output = FlexSeries;
     fn index<'a>(&'a self, index: &str) -> &'a FlexSeries {

@@ -1,7 +1,7 @@
 use std::ops::*;
 use std::convert::TryFrom;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum FlexDataType {
     Str,
     Uint,
@@ -11,7 +11,7 @@ pub enum FlexDataType {
     NA
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, PartialOrd, Clone)]
 pub enum FlexData {
     Str(String),
     Uint(u32),
@@ -21,7 +21,6 @@ pub enum FlexData {
     NA
 }
 
-// From implementation
 impl From<String> for FlexData {
     fn from(value: String) -> FlexData {
         FlexData::Str(value)
@@ -93,6 +92,8 @@ impl TryFrom<&FlexData> for i64 {
         }
     }
 }
+
+// Operators
 
 impl Add for &FlexData {
     type Output = FlexData;

@@ -1,11 +1,10 @@
 extern crate datatoolkit;
 extern crate serde;
 
+use std::convert::TryFrom;
 use datatoolkit::{FlexTable, FlexData, FlexDataType};
 
-#[test]
-fn csv_import() {
-
+fn create_table() -> FlexTable {
     // Pandas Equivalent:
     // df = pd.read_csv('./tests/E3.csv')
     // df = df[["Div","Date","Time","HomeTeam","AwayTeam","FTHG","FTAG","B365H","B365D","B365A"]]
@@ -23,8 +22,13 @@ fn csv_import() {
         FlexDataType::Dbl,
         FlexDataType::Dbl
     ];
-    let mut table = FlexTable::from_csv("./tests/E3.csv", headers, datatypes);
-    
+    FlexTable::from_csv("./tests/E3.csv", headers, datatypes)
+}
+
+#[test]
+fn csv_import() {
+
+    let mut table = create_table();
     assert!( table.has_na() );
 
     // All games where one team scored more than 3 goals
@@ -48,6 +52,18 @@ fn csv_import() {
 
     // Pandas equivalent: print( df.iloc[24,:] )
     table.record(24).print(); // 25th row
+
+    // Group by Hometeams
+    for (k,v) in table.group_by("HomeTeam") {
+        println!("{}", k);
+        v.print( Some(5) );
+    }
+
+    let filtered_table = table.drop_na();
+    assert!( filtered_table.has_na() == false );
+
+    let corr = f64::try_from( &filtered_table.pearson_correlation("B365H", "B365A", true) ).unwrap();
+    assert!( corr < 0.0 );
 
     //table.to_csv("test.csv");
 }
