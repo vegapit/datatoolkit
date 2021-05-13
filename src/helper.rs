@@ -1,4 +1,18 @@
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
 use crate::{FlexData, FlexDataType};
+
+pub fn csv_header(filepath: &str) -> Option<Vec<String>> {
+    let file = File::open(filepath).expect("File not found");
+    for opt_line in BufReader::new(file).lines() {
+        if let Ok( line ) = opt_line {
+            let tokens : Vec<&str> = line.as_str().split(',').collect();
+            return Some( tokens.iter().map(|s| s.to_string()).collect::<Vec<String>>() );
+        }
+    }
+    None
+}
 
 pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
     match x {

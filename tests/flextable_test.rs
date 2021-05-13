@@ -22,6 +22,7 @@ fn create_table() -> FlexTable {
         FlexDataType::Dbl,
         FlexDataType::Dbl
     ];
+
     FlexTable::from_csv("./tests/E3.csv", headers, datatypes)
 }
 
