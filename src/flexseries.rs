@@ -1,5 +1,6 @@
 use crate::{FlexDataType, FlexDataPoint, FlexData, FlexIndex};
 use crate::helper::convert;
+use std::collections::HashMap;
 use std::ops::*;
 use std::convert::TryFrom;
 use prettytable::{Table, Row, Cell};
@@ -8,7 +9,8 @@ use prettytable::{Table, Row, Cell};
 pub struct FlexSeries {
     label: String,
     datatype: FlexDataType,
-    data: Vec<FlexDataPoint>
+    data: Vec<FlexDataPoint>,
+    index_to_pos: HashMap<FlexIndex,usize>
 }
 
 impl FlexSeries {
@@ -17,15 +19,24 @@ impl FlexSeries {
         Self {
             label: label.to_string(),
             datatype: datatype,
-            data: Vec::new()
+            data: Vec::new(),
+            index_to_pos: HashMap::new()
         }
     }
 
     pub fn from_vec(label: &str, datatype: FlexDataType, data: Vec<FlexDataPoint>) -> Self {
+        let mod_data : Vec<FlexDataPoint> = data.clone().iter_mut()
+            .map(|d| d.as_type(&datatype) )
+            .collect();
+        let mut index_to_pos : HashMap<FlexIndex,usize> = HashMap::new();
+        for (i,fdp) in mod_data.iter().enumerate() {
+            index_to_pos.insert( fdp.get_index().clone(), i);
+        }
         Self {
             label: label.to_string(),
             datatype: datatype,
-            data: data
+            data: mod_data,
+            index_to_pos: index_to_pos
         }
     }
 
@@ -59,73 +70,92 @@ impl FlexSeries {
 
     pub fn get_data(&self) -> Vec<&FlexData> {
         self.data.iter()
-            .map(|fdp| fdp.get())
+            .map(|fdp| fdp.get_data())
             .collect()
     }
 
     // Selecting
 
-    pub fn at(&self, index: &FlexIndex) -> Option<&FlexDataPoint> {
-        self.data.iter()
-            .position(|fdp| fdp.get_index() == index)
-            .map(|i| &self.data[i] )
+    pub fn at(&self, index: &FlexIndex) -> Option<FlexDataPoint> {
+        if let Some( &pos ) = self.index_to_pos.get( index ) {
+            Some( self.data[pos].clone() )
+        } else {
+            None
+        }
     }
 
     pub fn contains(&self, index: &FlexIndex) -> bool {
-        self.data.iter()
-            .position(|fdp| fdp.get_index() == index)
-            .is_some()
+        self.index_to_pos.contains_key( index )
+    }
+
+    pub fn get_subset(&self, indices: Vec<FlexIndex>) -> Self {
+        let mut records : Vec<FlexDataPoint> = Vec::new();
+        for index in indices.into_iter() {
+            if let Some( record ) = self.at( &index ) {
+                records.push( record );
+            }
+        }
+        Self::from_vec( self.get_label(), self.get_datatype().clone(), records )
     }
 
     // Data operations
 
     pub fn update(&mut self, data: FlexDataPoint) {
-        if let Some(i) = self.data.iter().position(|fdp| fdp.get_index() == data.get_index()) {
-            self.data[i] = data;
+        if let Some( &i ) = self.index_to_pos.get( data.get_index() ) {
+            self.data[i] = data.as_type(&self.datatype);
         }
     }
 
-    pub fn insert_update(&mut self, item: FlexDataPoint) {
-        if let Some(k) = self.data.iter().position(|x| x.get_index() == item.get_index() ) {
-            self.data[k] = item;
+    pub fn insert(&mut self, data: FlexDataPoint) {
+        self.index_to_pos.insert(data.get_index().clone(), self.data.len());
+        self.data.push(data.as_type(&self.datatype));
+    }
+
+    pub fn insert_update(&mut self, data: FlexDataPoint) {
+        if let Some( &i ) = self.index_to_pos.get( data.get_index() ) {
+            self.data[i] = data.as_type(&self.datatype);
         } else {
-            self.data.push(item);
-            self.data.sort();
+            self.index_to_pos.insert(data.get_index().clone(), self.data.len());
+            self.data.push(data.as_type(&self.datatype));
         }
     }
 
     pub fn remove(&mut self, k: usize) {
+        self.index_to_pos.remove( self.data[k].get_index() );
         self.data.remove(k);
     }
 
     pub fn remove_at(&mut self, index: &FlexIndex) {
-        if let Some(i) = self.data.iter().position(|fdp| fdp.get_index() == index) {
+        if let Some( &i ) = self.index_to_pos.get( index ) {
+            self.index_to_pos.remove( index );
             self.data.remove(i);
-        }
-    }
-
-    pub fn as_type(&mut self, datatype: &FlexDataType) {
-        for fdp in self.data.iter_mut() {
-            fdp.as_type( datatype );
         }
     }
 
     // Transformation
 
-    pub fn align_to(&self, indices: Vec<&FlexIndex>) -> Self {
+    pub fn as_type(&self, datatype: &FlexDataType) -> Self {
+        let data : Vec<FlexDataPoint> = self.data.iter()
+            .map(|d| d.as_type(datatype))
+            .collect();
+        Self::from_vec(self.label.as_str(), self.datatype.clone(), data)
+    }
+
+    pub fn align_to(&self, indices: &Vec<FlexIndex>) -> Self {
         let mut series = self.clone();
         for index in indices.iter() {
             if !series.contains( index ) {
-                series.insert_update( FlexDataPoint::new((*index).clone(), FlexData::NA) );
+                series.insert( FlexDataPoint::new((*index).clone(), FlexData::NA) );
             }
         }
         series
     }
 
-    pub fn apply(&mut self, f: impl Fn(&FlexData) -> FlexData) {
-        for fdp in self.data.iter_mut() {
-            fdp.apply(&f);
-        }
+    pub fn apply(&self, f: impl Fn(&FlexData) -> FlexData) -> Self {
+        let data = self.data.iter()
+            .map(|dp| dp.apply(&f))
+            .collect();
+        Self::from_vec(self.label.as_str(), self.datatype.clone(), data)
     }
 
     // Filtering
@@ -142,24 +172,24 @@ impl FlexSeries {
 
     pub fn has_na(&self) -> bool {
         self.data.iter()
-            .any(|fdp| fdp.get() == &FlexData::NA )
+            .any(|fdp| fdp.get_data() == &FlexData::NA )
     }
 
-    pub fn get_na(&self) -> FlexSeries {
-        self.filter(|x: &FlexDataPoint| x.get() == &FlexData::NA)
+    pub fn get_na(&self) -> Self {
+        self.filter(|x: &FlexDataPoint| x.get_data() == &FlexData::NA)
     }
 
-    pub fn drop_na(&self) -> FlexSeries {
-        self.filter(|x: &FlexDataPoint| x.get() != &FlexData::NA)
+    pub fn drop_na(&self) -> Self {
+        self.filter(|x: &FlexDataPoint| x.get_data() != &FlexData::NA)
     }
 
     // Statistics
 
     pub fn sum(&self) -> FlexData {
         match self.datatype {
-            FlexDataType::Int => self.data.iter().fold( FlexData::Int(0), |acc, fdp| &acc + fdp.get()),
-            FlexDataType::Uint => self.data.iter().fold( FlexData::Uint(0), |acc, fdp| &acc + fdp.get()),
-            FlexDataType::Dbl => self.data.iter().fold( FlexData::Dbl(0f64), |acc, fdp| &acc + fdp.get()),
+            FlexDataType::Int => self.data.iter().fold( FlexData::Int(0), |acc, fdp| &acc + fdp.get_data()),
+            FlexDataType::Uint => self.data.iter().fold( FlexData::Uint(0), |acc, fdp| &acc + fdp.get_data()),
+            FlexDataType::Dbl => self.data.iter().fold( FlexData::Dbl(0f64), |acc, fdp| &acc + fdp.get_data()),
             _ => FlexData::NA 
         }
     }
@@ -177,19 +207,17 @@ impl FlexSeries {
         }
     }
 
-    pub fn covariance(&self, other: &FlexSeries, is_sample: bool) -> FlexData {
+    pub fn covariance(&self, other: &Self, is_sample: bool) -> FlexData {
         if self.get_size() == 0 || other.get_size() == 0 || self.get_size() != other.get_size() {
             FlexData::NA
         } else {
-            let mut centered_series1 = self.clone();
-            centered_series1.as_type(&FlexDataType::Dbl);
+            let mut centered_series1 = self.as_type(&FlexDataType::Dbl);
             let m1 = centered_series1.mean();
-            centered_series1.apply(|x: &FlexData| x - &m1 );
+            centered_series1 = centered_series1.apply(|x: &FlexData| x - &m1 );
 
-            let mut centered_series2 = other.clone();
-            centered_series2.as_type(&FlexDataType::Dbl);
+            let mut centered_series2 = other.as_type(&FlexDataType::Dbl);
             let m2 = centered_series2.mean();
-            centered_series2.apply(|x: &FlexData| x - &m2 );
+            centered_series2 = centered_series2.apply(|x: &FlexData| x - &m2 );
 
             let centered_prod_series = centered_series1.prod("product", &FlexDataType::Dbl, &centered_series2);
 
@@ -211,7 +239,7 @@ impl FlexSeries {
         self.covariance(&self, is_sample)
     }
 
-    pub fn pearson_correlation(&self, other: &FlexSeries, is_sample: bool) -> FlexData {
+    pub fn pearson_correlation(&self, other: &Self, is_sample: bool) -> FlexData {
         let cov = self.covariance(other, is_sample);
         let v1 = f64::try_from( &self.variance(is_sample) ).unwrap();
         let v2 = f64::try_from( &other.variance(is_sample) ).unwrap();
@@ -244,7 +272,7 @@ impl FlexSeries {
                 FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
                 FlexIndex::Str(val) => Cell::new( val.as_str() )
             };
-            let data_cell = match self[i].get() {
+            let data_cell = match self[i].get_data() {
                 FlexData::Str(val) => Cell::new( val.as_str() ),
                 FlexData::Dbl(val) => Cell::new( format!("{:.5}", val).as_str() ),
                 FlexData::Uint(val) => Cell::new( format!("{}", val).as_str() ),
@@ -260,41 +288,42 @@ impl FlexSeries {
 
     // Operations
 
-    pub fn add(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+    pub fn add(&self, label: &str, datatype: &FlexDataType, other: &Self) -> Self {
         let mut data = self.data.clone();
         for fdp in data.iter_mut() {
             if let Some( other_fdp ) = other.at( fdp.get_index() ) {
-                let val = &convert( fdp.get(), datatype ) + &convert( other_fdp.get(), datatype );
-                fdp.set( val );
+                let val = &convert( fdp.get_data(), datatype ) + &convert( other_fdp.get_data(), datatype );
+                fdp.set_data( val );
             }
         }
-        FlexSeries::from_vec(label, datatype.clone(), data)
+        Self::from_vec(label, datatype.clone(), data)
     }
 
-    pub fn sub(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+    pub fn sub(&self, label: &str, datatype: &FlexDataType, other: &Self) -> Self {
         let mut data = self.data.clone();
         for fdp in data.iter_mut() {
             if let Some( other_fdp ) = other.at( fdp.get_index() ) {
-                let val = &convert( fdp.get(), datatype ) - &convert( other_fdp.get(), datatype );
-                fdp.set( val );
+                let val = &convert( fdp.get_data(), datatype ) - &convert( other_fdp.get_data(), datatype );
+                fdp.set_data( val );
             }
         }
-        FlexSeries::from_vec(label, datatype.clone(), data)
+        Self::from_vec(label, datatype.clone(), data)
     }
 
-    pub fn prod(&self, label: &str, datatype: &FlexDataType, other: &FlexSeries) -> Self {
+    pub fn prod(&self, label: &str, datatype: &FlexDataType, other: &Self) -> Self {
         let mut data = self.data.clone();
         for fdp in data.iter_mut() {
             if let Some( other_fdp ) = other.at( fdp.get_index() ) {
-                let val = &convert( fdp.get(), datatype ) * &convert( other_fdp.get(), datatype );
-                fdp.set( val );
+                let val = &convert( fdp.get_data(), datatype ) * &convert( other_fdp.get_data(), datatype );
+                fdp.set_data( val );
             }
         }
-        FlexSeries::from_vec(label, datatype.clone(), data)
+        Self::from_vec(label, datatype.clone(), data)
     }
 }
 
 // Implement [] operator
+
 impl Index<i32> for FlexSeries {
     type Output = FlexDataPoint;
     fn index<'a>(&'a self, index: i32) -> &'a FlexDataPoint {

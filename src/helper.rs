@@ -7,11 +7,58 @@ pub fn csv_header(filepath: &str) -> Option<Vec<String>> {
     let file = File::open(filepath).expect("File not found");
     for opt_line in BufReader::new(file).lines() {
         if let Ok( line ) = opt_line {
-            let tokens : Vec<&str> = line.as_str().split(',').collect();
-            return Some( tokens.iter().map(|s| s.to_string()).collect::<Vec<String>>() );
+            let tokens : Vec<String> = line.split(',')
+                .map(|s| s.to_string())
+                .collect();
+            return Some( tokens );
         }
     }
     None
+}
+
+pub fn get_datatype(data: &FlexData) -> FlexDataType {
+    match data {
+        FlexData::Uint(_) => FlexDataType::Uint,
+        FlexData::Int(_) => FlexDataType::Int,
+        FlexData::Dbl(_) => FlexDataType::Dbl,
+        FlexData::Str(_) => FlexDataType::Str,
+        FlexData::Char(_) => FlexDataType::Char,
+        _ => FlexDataType::NA
+    }
+}
+
+pub fn generate_flexdata_from_str(token: &str, datatype: &FlexDataType) -> FlexData {
+    match datatype {
+        FlexDataType::Dbl => {
+            if let Some( value ) = token.parse::<f64>().ok() {
+                FlexData::Dbl( value )
+            } else {
+                FlexData::NA
+            }
+        },
+        FlexDataType::Int => {
+            if let Some( value ) = token.parse::<i64>().ok() {
+                FlexData::Int( value )
+            } else {
+                FlexData::NA
+            }
+        },
+        FlexDataType::Uint => {
+            if let Some( value ) = token.parse::<u32>().ok() {
+                FlexData::Uint( value )
+            } else {
+                FlexData::NA
+            }
+        },
+        FlexDataType::Char => {
+            if let Some( value ) = token.parse::<char>().ok() {
+                FlexData::Char( value )
+            } else {
+                FlexData::NA
+            }
+        },
+        _ => FlexData::Str( token.to_string() )
+    }
 }
 
 pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {

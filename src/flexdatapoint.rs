@@ -16,11 +16,11 @@ impl FlexDataPoint {
         }
     }
 
-    pub fn get(&self) -> &FlexData {
+    pub fn get_data(&self) -> &FlexData {
         &self.data
     }
 
-    pub fn set(&mut self, data: FlexData) {
+    pub fn set_data(&mut self, data: FlexData) {
         self.data = data
     }
 
@@ -31,13 +31,15 @@ impl FlexDataPoint {
     pub fn set_index(&mut self, index: FlexIndex) {
         self.index = index;
     }
+    
+    // Transformation
 
-    pub fn apply(&mut self, f: impl Fn(&FlexData) -> FlexData) {
-        self.data = f(&self.data)
+    pub fn as_type(&self, datatype: &FlexDataType) -> Self {
+        Self::new( self.index.clone(), convert(&self.data, datatype))
     }
 
-    pub fn as_type(&mut self, datatype: &FlexDataType) {
-        self.data = convert(&self.data, datatype);
+    pub fn apply(&self, f: impl Fn(&FlexData) -> FlexData) -> Self {
+        Self::new( self.index.clone(), f(&self.data))
     }
 
 }

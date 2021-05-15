@@ -1,17 +1,24 @@
 use std::fs::File;
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::ops::*;
 use std::convert::TryFrom;
+use std::iter::Iterator;
 use prettytable::{Table, Row, Cell};
 
-use crate::helper::convert;
+use std::sync::{Arc, Mutex};
+
+use crate::helper::{convert, generate_flexdata_from_str, csv_header};
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FlexTable{
+pub struct FlexTable {
     iter_counter: usize,
-    series: Vec<FlexSeries>
+    labels: Vec<String>,
+    datatypes: Vec<FlexDataType>,
+    data: Vec<FlexDataVector>,
+    label_to_pos: HashMap<String,usize>,
+    index_to_pos: HashMap<FlexIndex,usize>
 }
 
 impl FlexTable {
@@ -20,103 +27,98 @@ impl FlexTable {
 
     pub fn new( series: Vec<FlexSeries> ) -> Self {
         assert!( series.iter().map(|s| s.get_size()).min() == series.iter().map(|s| s.get_size()).max() );
+        let mut data : Vec<FlexDataVector> = Vec::new();
+        for i in 0..series[0].get_size() {
+            let index = series[0][i].get_index().clone();
+            let fds : Vec<FlexData> = series.iter()
+                .map(|s| s[i].get_data().clone() )
+                .collect();
+            data.push( FlexDataVector::new( index, fds ) );
+        }
+        let mut index_to_pos : HashMap<FlexIndex,usize> = HashMap::new();
+        for (i,fdp) in data.iter().enumerate() {
+            index_to_pos.insert( fdp.get_index().clone(), i);
+        }
+        let mut label_to_pos : HashMap<String,usize> = HashMap::new();
+        for (i,s) in series.iter().enumerate() {
+            label_to_pos.insert( s.get_label().to_string(), i);
+        }
         Self {
             iter_counter: 0,
-            series: series
+            labels: series.iter().map(|s| s.get_label().to_string()).collect(),
+            datatypes: series.iter().map(|s| s.get_datatype().clone()).collect(),
+            data: data,
+            label_to_pos: label_to_pos,
+            index_to_pos: index_to_pos
         }
     }
 
-    pub fn from_records( records: Vec<FlexDataVector> ) -> Self {
-        let headers : Vec<&str> = records[0].get_labels().iter().map(|s| s.as_str()).collect();
-        let datatypes : Vec<FlexDataType> = records[0].get_datatypes().iter().cloned().collect();
-        let mut series : Vec<FlexSeries> = headers.iter().zip( datatypes.into_iter() )
-            .map(|(h,d)| FlexSeries::new(h, d))
+    pub fn from_vecs( labels: Vec<String>, datatypes: Vec<FlexDataType>, data: Vec<FlexDataVector> ) -> Self {
+        let mod_data : Vec<FlexDataVector> = data.into_iter()
+            .map(|d| d.as_types(&datatypes))
             .collect();
-        for record in records.iter() {
-            for k in 0..headers.len() {
-                series[k].insert_update( FlexDataPoint::new( record.get_index().clone(), record[k].clone()) );
-            }
+        let mut index_to_pos : HashMap<FlexIndex,usize> = HashMap::new();
+        for (i,fdp) in mod_data.iter().enumerate() {
+            index_to_pos.insert( fdp.get_index().clone(), i);
         }
-        Self::new( series )
+        let mut label_to_pos : HashMap<String,usize> = HashMap::new();
+        for (i,l) in labels.iter().enumerate() {
+            label_to_pos.insert( l.to_string(), i);
+        }
+        Self{
+            iter_counter: 0,
+            labels: labels,
+            datatypes: datatypes,
+            data: mod_data,
+            label_to_pos: label_to_pos,
+            index_to_pos: index_to_pos
+        }
     }
 
-    pub fn from_csv(filepath: &str, headers: Vec<&str>, datatypes: Vec<FlexDataType>) -> Self {
+    pub fn from_csv(filepath: &'static str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
+        // Define header positions and series
+        let raw_headers = csv_header(filepath).expect("File not found");
+        
+        let mut datavectors : Vec<FlexDataVector> = Vec::new();
+        let header_positions : Vec<usize> = headers.iter()
+            .filter_map(|header| raw_headers.iter().position(|token| token == header))
+            .collect();
+
+        let mut counter = 0;
+        let mut skip_header = true;
         let file = File::open(filepath).expect("File not found");
-        let mut headers_processed = false;
-        let mut column_positions : HashMap<String, usize> = HashMap::new();
-        let mut series : Vec<FlexSeries> = Vec::new();
-        let mut counter : usize = 0;
         for opt_line in BufReader::new(file).lines() {
+            if skip_header {
+                skip_header = false;
+                continue;
+            }
             if let Ok( line ) = opt_line {
                 let tokens : Vec<&str> = line.as_str().split(',').collect();
-                if !headers_processed {
-                    for (header, datatype) in headers.iter().zip( datatypes.iter() ) {
-                        if let Some(pos) = tokens.iter().position(|token| token == header) {
-                            column_positions.insert(header.to_string(), pos);
-                            series.push( FlexSeries::new(header, datatype.clone()) );
-                        }
-                    }
-                    headers_processed = true;
-                } else {
-                    for s in series.iter_mut() {
-                        let i = column_positions.get( s.get_label() ).cloned().unwrap();
-                        let str_value = tokens[i].to_string();
-                        let fdata = match s.get_datatype() {
-                            FlexDataType::Dbl => {
-                                if let Some( value ) = str_value.parse::<f64>().ok() {
-                                    FlexData::Dbl(value)
-                                } else {
-                                    FlexData::NA
-                                }
-                            },
-                            FlexDataType::Int => {
-                                if let Some( value ) = str_value.parse::<i64>().ok() {
-                                    FlexData::Int(value)
-                                } else {
-                                    FlexData::NA
-                                }
-                            },
-                            FlexDataType::Uint => {
-                                if let Some( value ) = str_value.parse::<u32>().ok() {
-                                    FlexData::Uint(value)
-                                } else {
-                                    FlexData::NA
-                                }
-                            },
-                            FlexDataType::Char => {
-                                if let Some( value ) = str_value.parse::<char>().ok() {
-                                    FlexData::Char(value)
-                                } else {
-                                    FlexData::NA
-                                }
-                            },
-                            _ => FlexData::Str(str_value)
-                        };
-                        s.insert_update( FlexDataPoint::new( FlexIndex::Uint(counter), fdata ) );
-                    }
-                    counter += 1;
-                }
+                let data : Vec<FlexData> = header_positions.iter()
+                    .enumerate()
+                    .map(|(i,&k)| generate_flexdata_from_str( tokens[k], &datatypes[i] ) )
+                    .collect();
+                datavectors.push( FlexDataVector::new( FlexIndex::Uint(counter), data ) );
+                counter += 1;
             }
         }
-        Self::new( series )
+        Self::from_vecs( headers, datatypes, datavectors )
     }
 
     pub fn to_csv(&self, filepath: &str) {
         let mut file = std::fs::File::create(filepath).expect("File creation failed");
         file.write_all("index,".as_bytes()).expect("Writing failed");
-        file.write_all(self.get_headers().join(",").as_bytes()).expect("Writing failed");
+        file.write_all(self.labels.join(",").as_bytes()).expect("Writing failed");
         file.write_all("\n".to_string().as_bytes()).expect("Writing failed");
         for i in 0..self.num_records() {
             let mut row : Vec<String> = Vec::new();
-            for j in 0..self.num_series() {
-                if j == 0 {
-                    let cell = match self.series[0][i].get_index() {
-                        FlexIndex::Uint(val) => format!("{}", val),
-                        FlexIndex::Str(val) => val.clone()
-                    };
-                    row.push(cell);
-                }
-                let cell = match self.series[j][i].get() {
+            let cell = match self.data[i].get_index() {
+                FlexIndex::Uint(val) => format!("{}", val),
+                FlexIndex::Str(val) => val.clone()
+            };
+            row.push(cell);
+            for d in self.data[i].get_data() {
+                let cell = match d {
                     FlexData::Str(val) => val.clone(),
                     FlexData::Dbl(val) => format!("{:.5}", val),
                     FlexData::Uint(val) => format!("{}", val),
@@ -133,138 +135,218 @@ impl FlexTable {
 
     // Getters
 
-    pub fn get_headers(&self) -> Vec<&str> {
-        self.series.iter()
-            .map(|s| s.get_label())
-            .collect()
+    pub fn get_labels(&self) -> &Vec<String> {
+        &self.labels
     }
 
-    pub fn get_datatypes(&self) -> Vec<&FlexDataType> {
-        self.series.iter()
-            .map(|s| s.get_datatype())
-            .collect()
+    pub fn get_datatypes(&self) -> &Vec<FlexDataType> {
+        &self.datatypes
     }
 
-    pub fn get_indices(&self) -> Vec<&FlexIndex> {
-        self.series.iter()
-            .last()
-            .expect("Table contains zero series")
-            .get_indices()
+    pub fn get_indices(&self) -> Vec<FlexIndex> {
+        self.index_to_pos.keys()
+            .map(|k| k.clone())
+            .collect()
     }
 
     pub fn num_records(&self) -> usize {
-        self.series[0].get_size()
+        self.data.len()
     }
 
     pub fn num_series(&self) -> usize {
-        self.series.len()
+        self.datatypes.len()
     }
 
-    pub fn record(&self, k: usize) -> FlexDataVector {
-        let data : Vec<FlexData> = self.series.iter()
-            .map(|s| s[k].get() )
-            .cloned()
-            .collect();
-        let index = self.series[0][k].get_index().clone();
-        let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
-        FlexDataVector::new( index, self.get_headers().clone(), datatypes, data)
+    // Selecting
+
+    pub fn at(&self, index: &FlexIndex) -> Option<FlexDataVector> {
+        if let Some( &pos ) = self.index_to_pos.get( index ) {
+            Some( self.data[pos].clone() )
+        } else {
+            None
+        }
+    }
+
+    pub fn contains(&self, index: &FlexIndex) -> bool {
+        self.index_to_pos.contains_key( index )
+    }
+
+    pub fn get_subset(&self, indices: Vec<FlexIndex>) -> Self {
+        let mut records : Vec<FlexDataVector> = Vec::new();
+        for index in indices.into_iter() {
+            if let Some( record ) = self.at( &index ) {
+                records.push( record );
+            }
+        }
+        Self::from_vecs( self.labels.clone(), self.datatypes.clone(),  records )
+    }
+
+    pub fn get_series(&self, label: &str) -> Option<FlexSeries> {
+        if let Some(pos) = self.labels.iter().position(|l| l == label) {
+            let data : Vec<FlexDataPoint> = self.data.iter()
+                .map(|v| FlexDataPoint::new( v.get_index().clone(), v.get_data()[pos].clone() ) )
+                .collect();
+            return Some( FlexSeries::from_vec(label, self.datatypes[pos].clone(), data) );
+        }
+        None
     }
 
     // Modifiers
 
     pub fn add_series(&mut self, series: FlexSeries) {
-        let adj_series = series.align_to( self.get_indices() );
-        self.series.push( adj_series );
+        let adj_series = series.align_to( &self.get_indices() );
+        self.labels.push( adj_series.get_label().to_string() );
+        self.label_to_pos.insert( adj_series.get_label().to_string(), self.labels.len() - 1);
+        self.datatypes.push( adj_series.get_datatype().clone() );
+        let mod_data : Vec<FlexDataVector> = self.data.iter()
+            .zip(adj_series.get_data())
+            .map(|(dv,dp)| {
+                let mut v = dv.get_data().clone();
+                v.push( dp.clone() );
+                FlexDataVector::new(dv.get_index().clone(), v)
+            })
+            .collect();
+        self.data = mod_data;
     }
 
     pub fn remove_record(&mut self, k: usize) {
-        for series in self.series.iter_mut() {
-            series.remove(k);
-        }
+        self.index_to_pos.remove( self.data[k].get_index() );
+        self.data.remove(k);
     }
 
     pub fn remove_record_at(&mut self, index: &FlexIndex) {
-        for series in self.series.iter_mut() {
-            series.remove_at(index);
+        if let Some( &i ) = self.index_to_pos.get( index ) {
+            self.index_to_pos.remove( index );
+            self.data.remove(i);
         }
     }
 
     // Filtering
 
-    pub fn filter_all(&self, headers: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
+    pub fn filter_all(&self, labels: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
         let mut records : Vec<FlexDataVector> = Vec::new();
         for k in 0..self.num_records() {
-            let rec = self.record(k);
-            if headers.iter().all(|lbl| f( rec.get(lbl).unwrap() )) {
-                records.push(rec);
+            if labels.iter()
+                .all(|&l| {
+                    if let Some( &pos ) = self.label_to_pos.get( l ) {
+                        f( &self.data[k].get_data()[pos] )
+                    } else {
+                        false
+                    }
+                }) {
+                records.push( self.data[k].clone() );
             }
         }
-        Self::from_records( records )
+        Self::from_vecs( self.labels.clone(), self.datatypes.clone(),  records )
     }
 
-    pub fn filter_any(&self, headers: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
+    pub fn filter_any(&self, labels: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
         let mut records : Vec<FlexDataVector> = Vec::new();
         for k in 0..self.num_records() {
-            let rec = self.record(k);
-            if headers.iter().any(|lbl| f( rec.get(lbl).unwrap() )) {
-                records.push(rec);
+            if labels.iter().any(|&l| {
+                if let Some( &pos ) = self.label_to_pos.get( l ) {
+                    f( &self.data[k].get_data()[pos] )
+                } else {
+                    false
+                }
+            }) {
+                records.push( self.data[k].clone() );
             }
         }
-        Self::from_records( records )
+        Self::from_vecs( self.labels.clone(), self.datatypes.clone(),  records )
     }
 
     // NA Management
 
     pub fn has_na(&self) -> bool {
-        self.series.iter()
+        self.data.iter()
             .any(|s| s.has_na())
     }
 
     pub fn get_na(&self) -> Self {
-        self.filter_any( self.get_headers().as_slice(), |x: &FlexData| x == &FlexData::NA )
+        let labels : Vec<&str> = self.get_labels().iter()
+            .map(|s| s.as_str())
+            .collect();
+        self.filter_any( labels.as_slice(), |x: &FlexData| x == &FlexData::NA )
     }
 
     pub fn drop_na(&self) -> Self {
-        self.filter_all( self.get_headers().as_slice(), |x: &FlexData| x != &FlexData::NA )
+        let labels : Vec<&str> = self.get_labels().iter()
+            .map(|s| s.as_str())
+            .collect();
+        self.filter_all( labels.as_slice(), |x: &FlexData| x != &FlexData::NA )
     }
 
     // n-ary operation
 
-    pub fn nary_apply(&self, label: &str, datatype: FlexDataType, headers: &[&str], f: impl Fn(&[&FlexData]) -> FlexData) -> FlexSeries {
+    pub fn nary_apply(&self, label: &str, datatype: FlexDataType, labels: &[&str], f: impl Fn(&[&FlexData]) -> FlexData) -> FlexSeries {
         let mut data : Vec<FlexDataPoint> = Vec::new();
         for k in 0..self.num_records() {
-            let rec = self.record(k);
-            let inputs : Vec<&FlexData> = headers.iter()
-                .map(|h| rec.get(h).unwrap())
+            let inputs : Vec<&FlexData> = labels.iter()
+                .map(|&l| {
+                    let pos = self.label_to_pos.get(l).expect("Label not found");
+                    &self.data[k][*pos]
+                })
                 .collect();
-            data.push( FlexDataPoint::new(rec.get_index().clone(), f( inputs.as_slice() ) ) );
+            data.push( FlexDataPoint::new( self.data[k].get_index().clone(), f( inputs.as_slice() ) ) );
         }
         FlexSeries::from_vec(label, datatype, data)
     }
 
     // grouping 
 
-    pub fn group_by(&self, header: &str) -> HashMap<String, Self> {
-        let mut groups : HashMap<String, Self> = HashMap::new();
-        let series = self.series.iter().find(|s| s.get_label() == header).expect("Header not found");
-        let mut value_set : HashSet<String> = HashSet::new();
-        for fd in series.get_data() {
-            let val : String = String::try_from( &convert(fd, &FlexDataType::Str) ).unwrap();
-            value_set.insert( val );
+    pub fn group_by(table: &Self, label: &str) -> HashMap<String, Self> {
+        
+        let groups : Arc<Mutex<HashMap<String, Self>>> = Arc::new( Mutex::new( HashMap::new() ) );
+        let mut thread_handles : Vec<_> = Vec::new();
+
+        if let Some( series ) = table.get_series(label) {
+            // Define value set
+            let mut value_set : HashMap<String, Vec<FlexIndex>> = HashMap::new();
+            for k in 0..series.get_size() {
+                let fdp = series[k].clone();
+                let val : String = String::try_from( &convert(fdp.get_data(), &FlexDataType::Str) )
+                    .expect("Value not convertible to String");
+                if let Some( v ) = value_set.get_mut( &val ) {
+                    v.push( fdp.get_index().clone() );
+                } else {
+                    value_set.insert( val, Vec::<FlexIndex>::new() );
+                }
+            }
+
+            // Build subsets
+            let arc_table = Arc::new( table.clone() );
+            for (k,v) in value_set.into_iter() {
+                let cloned_groups = groups.clone();
+                let cloned_table = arc_table.clone();
+                let handle = std::thread::spawn(move || {
+                    let subset = cloned_table.get_subset(v);
+                    let mut local_groups = cloned_groups.lock().unwrap();
+                    local_groups.insert(k, subset);
+                });
+                thread_handles.push( handle );
+                if thread_handles.len() == 4 {
+                    thread_handles.into_iter()
+                        .for_each(|handle| { let _ = handle.join(); });
+                    thread_handles = Vec::new();
+                }
+            }
         }
-        for val in value_set.into_iter() {
-            let f = |x: &FlexData| x == &FlexData::Str(val.clone());
-            let ftable = self.filter_any(&[header], f);
-            groups.insert(val,ftable);
+
+        if thread_handles.len() > 0 {
+            thread_handles.into_iter()
+                .for_each(|handle| { let _ = handle.join(); });
         }
-        groups
+
+        let res = groups.lock().unwrap().clone();
+        res
     }
 
     // statistics
 
-    pub fn pearson_correlation(&self, header1: &str, header2: &str, is_sample: bool) -> FlexData {
-        let series1 = self.series.iter().find(|s| s.get_label() == header1).expect("Label1 not found");
-        let series2 = self.series.iter().find(|s| s.get_label() == header2).expect("Label2 not found");
+    pub fn pearson_correlation(&self, label1: &str, label2: &str, is_sample: bool) -> FlexData {
+        let series1 = self.get_series(label1).expect("Label1 not found");
+        let series2 = self.get_series(label2).expect("Label2 not found");
         series1.pearson_correlation(&series2, is_sample)
     }
 
@@ -273,12 +355,12 @@ impl FlexTable {
     pub fn print(&self, max_size: Option<usize>) {
         let size = max_size.map(|val| val.min(self.num_records()) ).unwrap_or( self.num_records() );
         let mut table = Table::new();
-        let mut headers_cells : Vec<Cell> = self.get_headers().iter()
+        let mut headers_cells : Vec<Cell> = self.labels.iter()
             .map(|h| Cell::new(h))
             .collect();
         headers_cells.insert(0, Cell::new(""));
         table.add_row(Row::new(headers_cells));
-        let mut types_cells : Vec<Cell> = self.get_datatypes().iter()
+        let mut types_cells : Vec<Cell> = self.datatypes.iter()
             .map(|datatype| {
                 match datatype {
                     FlexDataType::Dbl => Cell::new("f64"),
@@ -296,13 +378,13 @@ impl FlexTable {
             let mut record_cells : Vec<Cell> = Vec::new();
             for j in 0..self.num_series() {
                 if j == 0 {
-                    let cell = match self.series[0][i].get_index() {
+                    let cell = match self.data[i].get_index() {
                         FlexIndex::Uint(val) => Cell::new( format!("{}", val).as_str() ),
                         FlexIndex::Str(val) => Cell::new( val.as_str() )
                     };
                     record_cells.push(cell);
                 }
-                let cell = match self.series[j][i].get() {
+                let cell = match &self.data[i].get_data()[j] {
                     FlexData::Str(val) => Cell::new( val.as_str() ),
                     FlexData::Dbl(val) => Cell::new( format!("{:.5}", val).as_str() ),
                     FlexData::Uint(val) => Cell::new( format!("{}", val).as_str() ),
@@ -321,10 +403,10 @@ impl FlexTable {
 
 //Implement [] operator
 
-impl Index<&str> for FlexTable {
-    type Output = FlexSeries;
-    fn index<'a>(&'a self, index: &str) -> &'a FlexSeries {
-        self.series.iter().find(|s| s.get_label() == index).expect("Label not found")
+impl Index<usize> for FlexTable {
+    type Output = FlexDataVector;
+    fn index<'a>(&'a self, index: usize) -> &'a FlexDataVector {
+        &self.data[index]
     }
 }
 
@@ -333,13 +415,7 @@ impl Iterator for FlexTable {
     
     fn next(&mut self) -> Option<Self::Item> {
         if self.iter_counter < self.num_records() {
-            let data : Vec<FlexData> = self.series.iter()
-                .map(|s| s[self.iter_counter].get() )
-                .cloned()
-                .collect();
-            let index = self.series[0][self.iter_counter].get_index().clone();
-            let datatypes : Vec<FlexDataType> = self.get_datatypes().iter().cloned().cloned().collect();
-            let dv = FlexDataVector::new( index, self.get_headers().clone(), datatypes, data);
+            let dv = self.data[self.iter_counter].clone();
             self.iter_counter += 1;
             Some( dv )
         } else {

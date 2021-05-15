@@ -2,7 +2,7 @@ extern crate datatoolkit;
 extern crate serde;
 
 use std::convert::TryFrom;
-use datatoolkit::{FlexTable, FlexData, FlexDataType};
+use datatoolkit::{FlexTable, FlexData, FlexIndex, FlexDataType};
 
 fn create_table() -> FlexTable {
     // Pandas Equivalent:
@@ -23,7 +23,7 @@ fn create_table() -> FlexTable {
         FlexDataType::Dbl
     ];
 
-    FlexTable::from_csv("./tests/E3.csv", headers, datatypes)
+    FlexTable::from_csv("./tests/E3.csv", headers.into_iter().map(String::from).collect(), datatypes)
 }
 
 #[test]
@@ -45,19 +45,25 @@ fn csv_import() {
     // Create new series as function of others
     // using helper functions to condense the code
     // Pandas equivalent: df['GoalDiff'] = df['FTHG'] - df['FTAG']
-    let gd_series = table["FTHG"].sub( "GoalDiff", &FlexDataType::Int, &table["FTAG"] );
+    let fthg_series = table.get_series("FTHG").expect("Series not found");
+    let ftag_series = table.get_series("FTAG").expect("Series not found");
+    let gd_series = fthg_series.sub( "GoalDiff", &FlexDataType::Int, &ftag_series );
     table.add_series( gd_series );
     
     // Pandas equivalent: print( df.head(10) )
     table.print( Some(10) ); // print first 10 records only
 
     // Pandas equivalent: print( df.iloc[24,:] )
-    table.record(24).print(); // 25th row
+    table[24].print();
+
+    // Subset selection
+    table.get_subset( vec![FlexIndex::Uint(12), FlexIndex::Uint(30)]).print( None );
 
     // Group by Hometeams
-    for (k,v) in table.group_by("HomeTeam") {
+    for (k,v) in FlexTable::group_by(&table, "HomeTeam") {
         println!("{}", k);
         v.print( Some(5) );
+        break;
     }
 
     let filtered_table = table.drop_na();

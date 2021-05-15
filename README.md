@@ -66,26 +66,38 @@ Here are some examples on generating new series using series in the `FlexTable`.
 
 ```rust
 // All games where one team scored more than 3 goals
-// Pandas equivalent: df.where((df['FTHG'] > 3) | (df['FTAG'] > 3))
-let f = |x: &FlexData| x > &FlexData::Uint(3);
-table.filter_any(&["FTHG","FTAG"], f).print( Some(20) );
+    // Pandas equivalent: df.where((df['FTHG'] > 3) | (df['FTAG'] > 3))
+    let f = |x: &FlexData| x > &FlexData::Uint(3);
+    table.filter_any(&["FTHG","FTAG"], f).print( Some(20) );
 
-// All games where no goals were scored
-// Pandas equivalent: df.where((df['FTHG'] == 0) & (df['FTAG'] == 0))
-let f = |x: &FlexData| x == &FlexData::Uint(0);
-table.filter_all(&["FTHG","FTAG"], f).print( Some(20) );
+    // All games where no goals were scored
+    // Pandas equivalent: df.where((df['FTHG'] == 0) & (df['FTAG'] == 0))
+    let f = |x: &FlexData| x == &FlexData::Uint(0);
+    table.filter_all(&["FTHG","FTAG"], f).print( Some(20) );
 
-// Create new series as function of others
-// using helper functions to condense the code
-// Pandas equivalent: df['GoalDiff'] = df['FTHG'] - df['FTAG']
-let gd_series = table["FTHG"].sub( "GoalDiff", &FlexDataType::Int, &table["FTAG"] );
-table.add_series( gd_series );
+    // Create new series as function of others
+    // using helper functions to condense the code
+    // Pandas equivalent: df['GoalDiff'] = df['FTHG'] - df['FTAG']
+    let fthg_series = table.get_series("FTHG").expect("Series not found");
+    let ftag_series = table.get_series("FTAG").expect("Series not found");
+    let gd_series = fthg_series.sub( "GoalDiff", &FlexDataType::Int, &ftag_series );
+    table.add_series( gd_series );
+    
+    // Pandas equivalent: print( df.head(10) )
+    table.print( Some(10) ); // print first 10 records only
 
-// Pandas equivalent: print( df.head(10) )
-table.print( Some(10) ); // print first 10 records only
+    // Pandas equivalent: print( df.iloc[24,:] )
+    table[24].print();
 
-// Pandas equivalent: print( df.iloc[24,:] )
-table.record(24).print(); // 25th row
+    // Subset selection
+    table.get_subset( vec![FlexIndex::Uint(12), FlexIndex::Uint(30)]).print( None );
+
+    // Group by Hometeams
+    for (k,v) in FlexTable::group_by(&table, "HomeTeam") {
+        println!("{}", k);
+        v.print( Some(5) );
+        break;
+    }
 ```
 
 Please refer to the `tests` folder for more usage examples.

@@ -1,25 +1,24 @@
 use std::ops::*;
 use crate::{FlexIndex, FlexData, FlexDataType};
+use crate::helper::{convert, get_datatype};
 use prettytable::{Table, Row, Cell};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexDataVector {
     index: FlexIndex,
-    labels: Vec<String>,
-    datatypes: Vec<FlexDataType>,
     data: Vec<FlexData>
 }
 
 impl FlexDataVector {
 
-    pub fn new(index: FlexIndex, labels: Vec<&str>, datatypes: Vec<FlexDataType>, data: Vec<FlexData>) -> Self {
+    pub fn new(index: FlexIndex, data: Vec<FlexData>) -> Self {
         Self {
             index: index,
-            labels: labels.into_iter().map(|lbl| lbl.to_string()).collect(),
-            datatypes: datatypes,
             data: data
         }
     }
+
+    // Getters and Setters
 
     pub fn get_index(&self) -> &FlexIndex {
         &self.index
@@ -29,29 +28,25 @@ impl FlexDataVector {
         self.index = index;
     }
 
-    pub fn get(&self, label: &str) -> Option<&FlexData> {
-        self.labels.iter()
-            .position(|lbl| lbl == label)
-            .map(|i| &self.data[i])
+    pub fn get_data(&self) -> &Vec<FlexData> {
+        &self.data
     }
 
-    pub fn set(&mut self, label:&str, data: FlexData) {
-        if let Some(i) = self.labels.iter().position(|lbl| lbl == label) {
-            self.data[i] = data;
-        }
+    pub fn set_data(&mut self, data: Vec<FlexData>) {
+        self.data = data;
     }
 
-    pub fn get_labels(&self) -> &Vec<String> {
-        &self.labels
-    }
-
-    pub fn get_datatypes(&self) -> &Vec<FlexDataType> {
-        &self.datatypes
+    pub fn get_datatypes(&self) -> Vec<FlexDataType> {
+        self.data.iter()
+            .map(|d| get_datatype(&d))
+            .collect()
     }
 
     pub fn get_size(&self) -> usize {
-        self.labels.len()
+        self.data.len()
     }
+
+    // Inspection
 
     pub fn verify(&self, f: impl Fn(&FlexData) -> bool) -> bool {
         self.data.iter()
@@ -62,19 +57,18 @@ impl FlexDataVector {
         !self.verify(|x: &FlexData| x != &FlexData::NA)
     }
 
-    pub fn contains(&self, label: &str) -> bool {
-        self.labels.iter()
-            .position(|lbl| lbl == label)
-            .is_some()
+    // Transformation
+
+    pub fn as_types(&self, datatypes: &Vec<FlexDataType>) -> Self {
+        let mod_data : Vec<FlexData> = self.data.iter()
+            .zip(datatypes)
+            .map(|(d,t)| convert(d, t))
+            .collect();
+        Self::new( self.index.clone(), mod_data )
     }
 
     pub fn print(&self) {
         let mut table = Table::new();
-        let mut headers_cells : Vec<Cell> = self.labels.iter()
-            .map(|h| Cell::new(h))
-            .collect();
-        headers_cells.insert(0, Cell::new(""));
-        table.add_row(Row::new(headers_cells));
         let mut types_cells : Vec<Cell> = self.get_datatypes().iter()
             .map(|datatype| {
                 match datatype {
