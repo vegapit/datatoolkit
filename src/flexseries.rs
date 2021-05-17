@@ -205,24 +205,20 @@ impl FlexSeries {
         if self.get_size() == 0 || other.get_size() == 0 || self.get_size() != other.get_size() {
             FlexData::NA
         } else {
-            let mut centered_series1 = self.as_type(&FlexDataType::Dbl);
-            let m1 = centered_series1.mean();
-            centered_series1 = centered_series1.apply(|x: &FlexData| x - &m1 );
-
-            let mut centered_series2 = other.as_type(&FlexDataType::Dbl);
-            let m2 = centered_series2.mean();
-            centered_series2 = centered_series2.apply(|x: &FlexData| x - &m2 );
-
-            let centered_prod_series = centered_series1.prod("product", &FlexDataType::Dbl, &centered_series2);
-
+            let float_series1 = self.as_type(&FlexDataType::Dbl);
+            let m1 = f64::try_from( &float_series1.mean() ).unwrap();
+            let float_series2 = other.as_type(&FlexDataType::Dbl);
+            let m2 = f64::try_from( &float_series2.mean() ).unwrap();
+            let prod_float_series = float_series1.prod("product", &FlexDataType::Dbl, &float_series2);
+            let n = prod_float_series.get_size() as f64;
             if is_sample {
-                match centered_prod_series.sum() {
-                    FlexData::Dbl(val) => FlexData::Dbl( val / ((centered_prod_series.get_size() - 1) as f64) ),
+                match prod_float_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( (val - n * m1 * m2) / (n - 1f64) ),
                     _ => FlexData::NA
                 }
             } else {
-                match centered_prod_series.sum() {
-                    FlexData::Dbl(val) => FlexData::Dbl( val / (centered_prod_series.get_size() as f64) ),
+                match prod_float_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / n - m1 * m2 ),
                     _ => FlexData::NA
                 }
             }
@@ -233,32 +229,35 @@ impl FlexSeries {
         if self.get_size() == 0 {
             FlexData::NA
         } else {
-            let mut centered_series = self.as_type(&FlexDataType::Dbl);
-            let m = centered_series.mean();
-            centered_series = centered_series.apply(|x: &FlexData| x - &m );
-
-            let centered_prod_series = centered_series.prod("product", &FlexDataType::Dbl, &centered_series);
-
+            let float_series = self.as_type(&FlexDataType::Dbl);
+            let m = f64::try_from( &float_series.mean() ).unwrap();
+            let squared_float_series = float_series.prod("squared", &FlexDataType::Dbl, &float_series);
+            let n = float_series.get_size() as f64;
             if is_sample {
-                match centered_prod_series.sum() {
-                    FlexData::Dbl(val) => FlexData::Dbl( val / ((centered_prod_series.get_size() - 1) as f64) ),
+                match squared_float_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( (val - n * m.powf(2f64)) / (n - 1f64) ),
                     _ => FlexData::NA
                 }
             } else {
-                match centered_prod_series.sum() {
-                    FlexData::Dbl(val) => FlexData::Dbl( val / (centered_prod_series.get_size() as f64) ),
+                match squared_float_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / n - m.powf(2f64) ),
                     _ => FlexData::NA
                 }
             }
         }
     }
 
-    pub fn pearson_correlation(&self, other: &Self, is_sample: bool) -> FlexData {
-        let cov = self.covariance(other, is_sample);
-        let v1 = f64::try_from( &self.variance(is_sample) ).unwrap();
-        let v2 = f64::try_from( &other.variance(is_sample) ).unwrap();
-        match cov {
-            FlexData::Dbl(val) => FlexData::Dbl( val / ( v1.sqrt() * v2.sqrt() ) ),
+    pub fn pearson_correlation(&self, other: &Self) -> FlexData {
+        let float_series1 = self.as_type(&FlexDataType::Dbl);
+        let m1 = f64::try_from( &float_series1.mean() ).unwrap();
+        let float_series2 = other.as_type(&FlexDataType::Dbl);
+        let m2 = f64::try_from( &float_series2.mean() ).unwrap();
+        let prod_float_series = float_series1.prod("product", &FlexDataType::Dbl, &float_series2);
+        let squared_float_series1 = float_series1.prod("squared1", &FlexDataType::Dbl, &float_series1);
+        let squared_float_series2 = float_series2.prod("squared2", &FlexDataType::Dbl, &float_series2);
+        let n = prod_float_series.get_size() as f64;
+        match (prod_float_series.sum(),squared_float_series1.sum(),squared_float_series2.sum())  {
+            (FlexData::Dbl(val12),FlexData::Dbl(val1),FlexData::Dbl(val2)) => FlexData::Dbl( (val12 - n * m1 * m2) / ((val1 - n * m1.powf(2f64)).sqrt() * (val2 - n * m2.powf(2f64)).sqrt()) ),
             _ => FlexData::NA
         }
     }

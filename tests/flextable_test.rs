@@ -69,7 +69,7 @@ fn csv_import() {
     assert!( filtered_table.has_na() == false );
 
     let filtered_series = filtered_table.extract_series(&["B365H", "B365A"]);
-    let corr = f64::try_from( &filtered_series[0].pearson_correlation(&filtered_series[1], true) ).unwrap();
+    let corr = f64::try_from( &filtered_series[0].pearson_correlation(&filtered_series[1]) ).unwrap();
     assert!( corr < 0.0 );
 
     //table.to_csv("test.csv");

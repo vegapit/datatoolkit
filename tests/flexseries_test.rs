@@ -78,7 +78,7 @@ fn stats() {
     let cov = f64::try_from( &series1.covariance( &series2, true ) ).unwrap();
     assert!( (-0.996f64 - cov).abs() < 1e-4 );
 
-    let corr = f64::try_from( &series1.pearson_correlation( &series2, true ) ).unwrap();
+    let corr = f64::try_from( &series1.pearson_correlation( &series2 ) ).unwrap();
     println!("{:?}", corr);
     assert!( (-0.8991f64 - corr).abs() < 1e-4 );
 }
