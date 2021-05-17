@@ -45,9 +45,8 @@ fn csv_import() {
     // Create new series as function of others
     // using helper functions to condense the code
     // Pandas equivalent: df['GoalDiff'] = df['FTHG'] - df['FTAG']
-    let fthg_series = table.get_series("FTHG").expect("Series not found");
-    let ftag_series = table.get_series("FTAG").expect("Series not found");
-    let gd_series = fthg_series.sub( "GoalDiff", &FlexDataType::Int, &ftag_series );
+    let series = table.extract_series(&["FTHG","FTAG"]);
+    let gd_series = series[0].sub( "GoalDiff", &FlexDataType::Int, &series[1] );
     table.add_series( gd_series );
     
     // Pandas equivalent: print( df.head(10) )
@@ -69,7 +68,8 @@ fn csv_import() {
     let filtered_table = table.drop_na();
     assert!( filtered_table.has_na() == false );
 
-    let corr = f64::try_from( &filtered_table.pearson_correlation("B365H", "B365A", true) ).unwrap();
+    let filtered_series = filtered_table.extract_series(&["B365H", "B365A"]);
+    let corr = f64::try_from( &filtered_series[0].pearson_correlation(&filtered_series[1], true) ).unwrap();
     assert!( corr < 0.0 );
 
     //table.to_csv("test.csv");

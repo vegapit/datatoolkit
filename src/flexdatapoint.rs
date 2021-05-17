@@ -1,5 +1,5 @@
 use crate::{FlexData, FlexDataType, FlexIndex};
-use crate::helper::convert;
+use crate::helper::{convert, derive_datatype};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FlexDataPoint {
@@ -31,7 +31,21 @@ impl FlexDataPoint {
     pub fn set_index(&mut self, index: FlexIndex) {
         self.index = index;
     }
+
+    pub fn get_datatype(&self) -> FlexDataType {
+        derive_datatype( &self.data )
+    }
     
+    // Inspection
+
+    pub fn verify(&self, f: impl Fn(&FlexData) -> bool) -> bool {
+        f(&self.data)
+    }
+
+    pub fn has_na(&self) -> bool {
+        !self.verify(|x: &FlexData| x != &FlexData::NA)
+    }
+
     // Transformation
 
     pub fn as_type(&self, datatype: &FlexDataType) -> Self {

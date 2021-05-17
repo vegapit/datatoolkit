@@ -77,11 +77,8 @@ impl FlexSeries {
     // Selecting
 
     pub fn at(&self, index: &FlexIndex) -> Option<FlexDataPoint> {
-        if let Some( &pos ) = self.index_to_pos.get( index ) {
-            Some( self.data[pos].clone() )
-        } else {
-            None
-        }
+        self.index_to_pos.get( index )
+            .map(|&pos| self.data[pos].clone() )
     }
 
     pub fn contains(&self, index: &FlexIndex) -> bool {
@@ -89,12 +86,9 @@ impl FlexSeries {
     }
 
     pub fn get_subset(&self, indices: Vec<FlexIndex>) -> Self {
-        let mut records : Vec<FlexDataPoint> = Vec::new();
-        for index in indices.into_iter() {
-            if let Some( record ) = self.at( &index ) {
-                records.push( record );
-            }
-        }
+        let records : Vec<FlexDataPoint> = indices.into_iter()
+            .filter_map(|index| self.at( &index ))
+            .collect();
         Self::from_vec( self.get_label(), self.get_datatype().clone(), records )
     }
 
@@ -236,7 +230,27 @@ impl FlexSeries {
     }
 
     pub fn variance(&self, is_sample: bool) -> FlexData {
-        self.covariance(&self, is_sample)
+        if self.get_size() == 0 {
+            FlexData::NA
+        } else {
+            let mut centered_series = self.as_type(&FlexDataType::Dbl);
+            let m = centered_series.mean();
+            centered_series = centered_series.apply(|x: &FlexData| x - &m );
+
+            let centered_prod_series = centered_series.prod("product", &FlexDataType::Dbl, &centered_series);
+
+            if is_sample {
+                match centered_prod_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / ((centered_prod_series.get_size() - 1) as f64) ),
+                    _ => FlexData::NA
+                }
+            } else {
+                match centered_prod_series.sum() {
+                    FlexData::Dbl(val) => FlexData::Dbl( val / (centered_prod_series.get_size() as f64) ),
+                    _ => FlexData::NA
+                }
+            }
+        }
     }
 
     pub fn pearson_correlation(&self, other: &Self, is_sample: bool) -> FlexData {

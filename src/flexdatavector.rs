@@ -1,6 +1,6 @@
 use std::ops::*;
 use crate::{FlexIndex, FlexData, FlexDataType};
-use crate::helper::{convert, get_datatype};
+use crate::helper::{convert, derive_datatype};
 use prettytable::{Table, Row, Cell};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -38,7 +38,7 @@ impl FlexDataVector {
 
     pub fn get_datatypes(&self) -> Vec<FlexDataType> {
         self.data.iter()
-            .map(|d| get_datatype(&d))
+            .map(|d| derive_datatype(&d))
             .collect()
     }
 

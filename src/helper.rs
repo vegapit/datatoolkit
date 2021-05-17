@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 
 use crate::{FlexData, FlexDataType};
 
-pub fn csv_header(filepath: &str) -> Option<Vec<String>> {
+pub fn extract_csv_headers(filepath: &str) -> Option<Vec<String>> {
     let file = File::open(filepath).expect("File not found");
     for opt_line in BufReader::new(file).lines() {
         if let Ok( line ) = opt_line {
@@ -16,7 +16,7 @@ pub fn csv_header(filepath: &str) -> Option<Vec<String>> {
     None
 }
 
-pub fn get_datatype(data: &FlexData) -> FlexDataType {
+pub fn derive_datatype(data: &FlexData) -> FlexDataType {
     match data {
         FlexData::Uint(_) => FlexDataType::Uint,
         FlexData::Int(_) => FlexDataType::Int,

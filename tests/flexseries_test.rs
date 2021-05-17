@@ -36,6 +36,29 @@ fn make_double_series2() -> FlexSeries {
 }
 
 #[test]
+fn getters() {
+    let series1 = make_double_series1();
+    assert_eq!( series1.get_label(), "dummy1" );
+    assert_eq!( series1.get_datatype(), &FlexDataType::Dbl );
+    assert_eq!( series1.get_size(), 10 );
+    let data = series1.get_data();
+    assert_eq!( data[2], &FlexData::Dbl(3.6) );
+    assert_eq!( data[6], &FlexData::Dbl(2.7) );
+}
+
+#[test]
+fn selectors() {
+    let series1 = make_double_series1();
+    assert_eq!( series1.at( &FlexIndex::Uint(3) ), Some( FlexDataPoint::new(FlexIndex::Uint(3), FlexData::Dbl(3.6)) ) );
+    assert_eq!( series1.at( &FlexIndex::Uint(12) ), None );
+    assert_eq!( series1.contains( &FlexIndex::Uint(3) ), true );
+    assert_eq!( series1.contains( &FlexIndex::Uint(12) ), false );
+    let subset = series1.get_subset( vec![FlexIndex::Uint(3), FlexIndex::Uint(12)] );
+    assert_eq!( subset.get_size(), 1 );
+}
+
+
+#[test]
 fn stats() {
     let series1 = make_double_series1();
     let series2 = make_double_series2();

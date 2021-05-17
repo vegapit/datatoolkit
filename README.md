@@ -78,9 +78,8 @@ Here are some examples on generating new series using series in the `FlexTable`.
     // Create new series as function of others
     // using helper functions to condense the code
     // Pandas equivalent: df['GoalDiff'] = df['FTHG'] - df['FTAG']
-    let fthg_series = table.get_series("FTHG").expect("Series not found");
-    let ftag_series = table.get_series("FTAG").expect("Series not found");
-    let gd_series = fthg_series.sub( "GoalDiff", &FlexDataType::Int, &ftag_series );
+    let series = table.extract_series(&["FTHG","FTAG"]);
+    let gd_series = series[0].sub( "GoalDiff", &FlexDataType::Int, &series[1] );
     table.add_series( gd_series );
     
     // Pandas equivalent: print( df.head(10) )

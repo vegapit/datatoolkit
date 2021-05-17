@@ -4,11 +4,12 @@ use std::io::{BufRead, BufReader, Write};
 use std::ops::*;
 use std::convert::TryFrom;
 use std::iter::Iterator;
+use rayon::prelude::*;
 use prettytable::{Table, Row, Cell};
 
 use std::sync::{Arc, Mutex};
 
-use crate::helper::{convert, generate_flexdata_from_str, csv_header};
+use crate::helper::{convert, generate_flexdata_from_str, extract_csv_headers};
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -77,7 +78,7 @@ impl FlexTable {
 
     pub fn from_csv(filepath: &'static str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
         // Define header positions and series
-        let raw_headers = csv_header(filepath).expect("File not found");
+        let raw_headers = extract_csv_headers(filepath).expect("File not found");
         
         let mut datavectors : Vec<FlexDataVector> = Vec::new();
         let header_positions : Vec<usize> = headers.iter()
@@ -181,14 +182,32 @@ impl FlexTable {
         Self::from_vecs( self.labels.clone(), self.datatypes.clone(),  records )
     }
 
-    pub fn get_series(&self, label: &str) -> Option<FlexSeries> {
-        if let Some(pos) = self.labels.iter().position(|l| l == label) {
-            let data : Vec<FlexDataPoint> = self.data.iter()
-                .map(|v| FlexDataPoint::new( v.get_index().clone(), v.get_data()[pos].clone() ) )
-                .collect();
-            return Some( FlexSeries::from_vec(label, self.datatypes[pos].clone(), data) );
-        }
-        None
+    pub fn extract_series(&self, labels: &[&str]) -> Vec<FlexSeries> {
+        let res : Vec<FlexSeries> = labels.iter()
+            .map(|&label| {
+                let pos = self.label_to_pos.get(label).unwrap();
+                let data : Vec<FlexDataPoint> = self.data.par_iter()
+                    .map(|v| {
+                        FlexDataPoint::new( v.get_index().clone(), v.get_data()[*pos].clone() )
+                    })
+                    .collect();
+                FlexSeries::from_vec(label, self.datatypes[*pos].clone(), data)
+            })
+            .collect();
+        res
+    }
+
+    pub fn extract_all_series(&self) -> HashMap<String,FlexSeries> {
+        let mut res : HashMap<String,FlexSeries> = HashMap::new();
+        self.labels.iter()
+            .for_each(|label| {
+                let pos = self.label_to_pos.get(label).unwrap();
+                let data : Vec<FlexDataPoint> = self.data.par_iter()
+                    .map(|v| FlexDataPoint::new( v.get_index().clone(), v.get_data()[*pos].clone() ))
+                    .collect();
+                res.insert( label.clone(), FlexSeries::from_vec(label, self.datatypes[*pos].clone(), data) );
+            });
+        res
     }
 
     // Modifiers
@@ -300,11 +319,12 @@ impl FlexTable {
         let groups : Arc<Mutex<HashMap<String, Self>>> = Arc::new( Mutex::new( HashMap::new() ) );
         let mut thread_handles : Vec<_> = Vec::new();
 
-        if let Some( series ) = table.get_series(label) {
+        let series = table.extract_series( &[label] );
+        if series.len() == 1 {
             // Define value set
             let mut value_set : HashMap<String, Vec<FlexIndex>> = HashMap::new();
-            for k in 0..series.get_size() {
-                let fdp = series[k].clone();
+            for k in 0..series[0].get_size() {
+                let fdp = series[0][k].clone();
                 let val : String = String::try_from( &convert(fdp.get_data(), &FlexDataType::Str) )
                     .expect("Value not convertible to String");
                 if let Some( v ) = value_set.get_mut( &val ) {
@@ -325,11 +345,6 @@ impl FlexTable {
                     local_groups.insert(k, subset);
                 });
                 thread_handles.push( handle );
-                if thread_handles.len() == 4 {
-                    thread_handles.into_iter()
-                        .for_each(|handle| { let _ = handle.join(); });
-                    thread_handles = Vec::new();
-                }
             }
         }
 
@@ -340,14 +355,6 @@ impl FlexTable {
 
         let res = groups.lock().unwrap().clone();
         res
-    }
-
-    // statistics
-
-    pub fn pearson_correlation(&self, label1: &str, label2: &str, is_sample: bool) -> FlexData {
-        let series1 = self.get_series(label1).expect("Label1 not found");
-        let series2 = self.get_series(label2).expect("Label2 not found");
-        series1.pearson_correlation(&series2, is_sample)
     }
 
     // pretty print
