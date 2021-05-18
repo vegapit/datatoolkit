@@ -67,6 +67,9 @@ impl FlexDataVector {
         Self::new( self.index.clone(), mod_data )
     }
 
+    
+    // Print
+
     pub fn print(&self) {
         let mut table = Table::new();
         let mut types_cells : Vec<Cell> = self.get_datatypes().iter()

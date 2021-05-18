@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-
-use crate::{FlexData, FlexDataType};
+use std::collections::HashSet;
+use crate::{FlexData, FlexIndex, FlexDataType};
 
 pub fn extract_csv_headers(filepath: &str) -> Option<Vec<String>> {
     let file = File::open(filepath).expect("File not found");
@@ -59,6 +59,30 @@ pub fn generate_flexdata_from_str(token: &str, datatype: &FlexDataType) -> FlexD
         },
         _ => FlexData::Str( token.to_string() )
     }
+}
+
+pub fn make_data_from_index(index: &FlexIndex) -> FlexData {
+    match index {
+        FlexIndex::Uint(val) => FlexData::Uint(*val as u32),
+        FlexIndex::Str(val) => FlexData::Str(val.to_string())
+    }
+}
+
+pub fn make_index_from_data(data: &FlexData) -> FlexIndex {
+    match data {
+        FlexData::Uint(val) => FlexIndex::Uint(*val as usize),
+        FlexData::Int(val) => FlexIndex::Uint(*val as usize),
+        FlexData::Char(val) => FlexIndex::Str(format!("{}", val)),
+        FlexData::Str(val) => FlexIndex::Str(val.to_string()),
+        _ => panic!("FlexData::NA and FlexData::Dbl can not be indices")
+    }
+}
+
+pub fn index_intersection(first: Vec<&FlexIndex>, other: Vec<&FlexIndex>) -> Vec<FlexIndex> {
+    let set1 : HashSet<FlexIndex> = first.into_iter().cloned().collect();
+    let set2 : HashSet<FlexIndex> = other.into_iter().cloned().collect();
+    let intersect : Vec<FlexIndex> = set1.intersection(&set2).into_iter().cloned().collect();
+    intersect
 }
 
 pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {

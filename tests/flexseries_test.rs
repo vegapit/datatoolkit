@@ -1,7 +1,6 @@
 extern crate datatoolkit;
 
 use datatoolkit::{FlexDataType, FlexSeries, FlexDataPoint, FlexData, FlexIndex};
-use std::convert::TryFrom;
 
 fn make_double_series1() -> FlexSeries {
     let datapoints = vec![
@@ -49,7 +48,7 @@ fn getters() {
 #[test]
 fn selectors() {
     let series1 = make_double_series1();
-    assert_eq!( series1.at( &FlexIndex::Uint(3) ), Some( FlexDataPoint::new(FlexIndex::Uint(3), FlexData::Dbl(3.6)) ) );
+    assert_eq!( series1.at( &FlexIndex::Uint(3) ), Some( &FlexDataPoint::new(FlexIndex::Uint(3), FlexData::Dbl(3.6)) ) );
     assert_eq!( series1.at( &FlexIndex::Uint(12) ), None );
     assert_eq!( series1.contains( &FlexIndex::Uint(3) ), true );
     assert_eq!( series1.contains( &FlexIndex::Uint(12) ), false );
@@ -63,22 +62,22 @@ fn stats() {
     let series1 = make_double_series1();
     let series2 = make_double_series2();
 
-    let m1 = f64::try_from( &series1.mean() ).unwrap();
+    let m1 = series1.mean().unwrap();
     assert!( (1.72f64 - m1).abs() < 1e-5 );
 
-    let v1 = f64::try_from( &series1.variance(true) ).unwrap();
+    let v1 = series1.variance(true).unwrap();
     assert!( (1.3951f64 - v1).abs() < 1e-4 );
 
-    let m2 = f64::try_from( &series2.mean() ).unwrap();
+    let m2 = series2.mean().unwrap();
     assert!( (2.32f64 - m2).abs() < 1e-5 );
 
-    let v2 = f64::try_from( &series2.variance(true) ).unwrap();
+    let v2 = series2.variance(true).unwrap();
     assert!( (0.8795f64 - v2).abs() < 1e-4 );
 
-    let cov = f64::try_from( &series1.covariance( &series2, true ) ).unwrap();
+    let cov = series1.covariance( &series2, true ).unwrap();
     assert!( (-0.996f64 - cov).abs() < 1e-4 );
 
-    let corr = f64::try_from( &series1.pearson_correlation( &series2 ) ).unwrap();
+    let corr = series1.pearson_correlation( &series2 ).unwrap();
     println!("{:?}", corr);
     assert!( (-0.8991f64 - corr).abs() < 1e-4 );
 }

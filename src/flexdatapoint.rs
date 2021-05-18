@@ -68,16 +68,6 @@ impl Eq for FlexDataPoint{}
 
 impl PartialOrd for FlexDataPoint {
     fn partial_cmp(&self, other: &FlexDataPoint) -> Option<std::cmp::Ordering> {
-        if self.index == other.index {
-            Some( self.index.cmp(&other.index) )
-        } else {
-            None
-        }
-    }
-}
-
-impl Ord for FlexDataPoint {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.index.cmp(&other.index)
+        self.data.partial_cmp(&other.data)
     }
 }

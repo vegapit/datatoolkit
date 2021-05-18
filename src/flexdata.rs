@@ -1,5 +1,7 @@
 use std::ops::*;
 use std::convert::TryFrom;
+use std::iter::Sum;
+use crate::helper::derive_datatype;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum FlexDataType {
@@ -270,5 +272,20 @@ impl SubAssign for FlexData {
             },
             _ => FlexData::NA
         }
+    }
+}
+
+impl Sum<FlexData> for FlexData {
+    fn sum<I>(iter: I) -> FlexData 
+        where I: Iterator<Item=FlexData> {
+        let mut total = FlexData::NA;
+        for d in iter {
+            if derive_datatype( &total ) == FlexDataType::NA {
+                total = d;
+            } else {
+                total += d;
+            }
+        }
+        total
     }
 }

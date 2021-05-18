@@ -9,7 +9,7 @@ use prettytable::{Table, Row, Cell};
 
 use std::sync::{Arc, Mutex};
 
-use crate::helper::{convert, generate_flexdata_from_str, extract_csv_headers};
+use crate::helper::{convert, generate_flexdata_from_str, extract_csv_headers, make_index_from_data};
 use crate::{FlexDataType, FlexData, FlexIndex, FlexDataPoint, FlexDataVector, FlexSeries};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -108,7 +108,7 @@ impl FlexTable {
 
     pub fn to_csv(&self, filepath: &str) {
         let mut file = std::fs::File::create(filepath).expect("File creation failed");
-        file.write_all("index,".as_bytes()).expect("Writing failed");
+        file.write_all(",".as_bytes()).expect("Writing failed");
         file.write_all(self.labels.join(",").as_bytes()).expect("Writing failed");
         file.write_all("\n".to_string().as_bytes()).expect("Writing failed");
         for i in 0..self.num_records() {
@@ -240,6 +240,20 @@ impl FlexTable {
         }
     }
 
+    pub fn set_index(&mut self, label: &str) {
+        let pos = self.label_to_pos.get(label).unwrap();
+        let mod_data : Vec<FlexDataVector> = self.data.iter()
+            .map(|v| {
+                let mut data = v.get_data().clone();
+                let index = make_index_from_data( &data[*pos] );
+                data.remove( *pos );
+                FlexDataVector::new(index, data)
+            })
+            .collect();
+        self.data = mod_data;
+        self.label_to_pos.remove(label);
+    }
+
     // Filtering
 
     pub fn filter_all(&self, labels: &[&str], f: impl Fn(&FlexData) -> bool) -> Self {
@@ -310,6 +324,17 @@ impl FlexTable {
             data.push( FlexDataPoint::new( self.data[k].get_index().clone(), f( inputs.as_slice() ) ) );
         }
         FlexSeries::from_vec(label, datatype, data)
+    }
+
+    pub fn sort(&self, label: &str, ascending: bool) -> Self {
+        let pos = self.label_to_pos.get(label).unwrap();
+        let mut data = self.data.clone();
+        if ascending {
+            data.sort_by(|a,b| a[*pos].partial_cmp(&b[*pos]).unwrap() );
+        } else {
+            data.sort_by(|a,b| b[*pos].partial_cmp(&a[*pos]).unwrap() );
+        }
+        FlexTable::from_vecs(self.labels.clone(), self.datatypes.clone(), data)
     }
 
     // grouping 
