@@ -76,7 +76,7 @@ impl FlexTable {
         }
     }
 
-    pub fn from_csv(filepath: &'static str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
+    pub fn from_csv(filepath: &str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
         // Define header positions and series
         let raw_headers = extract_csv_headers(filepath).expect("File not found");
         
