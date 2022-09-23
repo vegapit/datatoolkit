@@ -86,8 +86,8 @@ impl<T: Ord + Clone,U: PartialOrd + Clone> Series<T,U> {
 
     /// Get range from start to end inclusive
     pub fn range(&self, start: i32, end: i32) -> Vec<DataPoint<T,U>> {
-        let is : usize = if start >= 0 { start as usize } else { self.data.len() + start as usize };
-        let ie : usize = if end >= 0 { end as usize } else { self.data.len() + end as usize };
+        let is : usize = if start >= 0 { start as usize } else { self.data.len() - start.abs() as usize };
+        let ie : usize = if end >= 0 { end as usize } else { self.data.len() - end.abs() as usize };
         let mut res : Vec<DataPoint<T,U>> = Vec::new();
         for i in is..=ie {
             res.push( self[i].clone() )
