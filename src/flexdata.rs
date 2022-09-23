@@ -17,7 +17,7 @@ pub enum FlexDataType {
 pub enum FlexData {
     Str(String),
     Uint(u32),
-    Int(i64),
+    Int(i32),
     Dbl(f64),
     Char(char),
     NA
@@ -35,8 +35,8 @@ impl From<u32> for FlexData {
     }
 }
 
-impl From<i64> for FlexData {
-    fn from(value: i64) -> FlexData {
+impl From<i32> for FlexData {
+    fn from(value: i32) -> FlexData {
         FlexData::Int(value)
     }
 }
@@ -85,12 +85,12 @@ impl TryFrom<&FlexData> for u32 {
     }
 }
 
-impl TryFrom<&FlexData> for i64 {
+impl TryFrom<&FlexData> for i32 {
     type Error = &'static str;
     fn try_from(value: &FlexData) -> Result<Self, Self::Error> {
         match value {
             FlexData::Int(v) => Ok(*v),
-            _ => Err("Only FlexData::Int can be extracted to i64")
+            _ => Err("Only FlexData::Int can be extracted to i32")
         }
     }
 }
@@ -197,7 +197,7 @@ impl Div for &FlexData {
             FlexData::Int(val) => {
                 match other {
                     FlexData::Int(other_val) => {
-                        if other_val != &0i64 {
+                        if other_val != &0 {
                             FlexData::Int(val / other_val)
                         } else {
                             FlexData::NA
@@ -209,7 +209,7 @@ impl Div for &FlexData {
             FlexData::Uint(val) => {
                 match other {
                     FlexData::Uint(other_val) => {
-                        if other_val != &0u32 {
+                        if other_val != &0 {
                             FlexData::Uint(val / other_val)
                         } else {
                             FlexData::NA

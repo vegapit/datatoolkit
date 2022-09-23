@@ -33,8 +33,8 @@ fn getters() {
     assert_eq!( res[0].get(), &'a' );
     assert_eq!( res[1].get(), &'p' );
     // Index 
-    assert_eq!( ts[-1].get(), &'t' ); // Last element
-    assert_eq!( ts[0].get(), &'v' ); // First element
+    assert_eq!( ts[-1i32].get(), &'t' ); // Last element
+    assert_eq!( ts[0i32].get(), &'v' ); // First element
 }
 
 #[test]

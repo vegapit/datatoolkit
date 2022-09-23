@@ -4,7 +4,7 @@ extern crate chrono;
 use datatoolkit::{DataPoint,Series};
 use chrono::{DateTime, Utc, TimeZone};
 
-fn build_series() -> Series<DateTime<Utc>, u32> {
+fn build_series() -> Series<DateTime<Utc>, usize> {
     let dps = vec![ 
         DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 0, 0), 122),
         DataPoint::new(Utc.ymd(2008, 1, 1).and_hms(0, 1, 0), 120),
@@ -34,14 +34,14 @@ fn getters() {
     assert_eq!( res[0].get(), &114 );
     assert_eq!( res[1].get(), &117 );
     // Index 
-    assert_eq!( ts[-1].get(), &116 ); // Last element
-    assert_eq!( ts[0].get(), &122 ); // First element
+    assert_eq!( ts[-1i32].get(), &116 ); // Last element
+    assert_eq!( ts[0i32].get(), &122 ); // First element
 }
 
 #[test]
 fn iterator() {
     let ts = build_series();
-    let res : Vec<DataPoint<DateTime<Utc>,u32>> = ts.into_iter().collect();
+    let res : Vec<DataPoint<DateTime<Utc>,usize>> = ts.into_iter().collect();
     assert_eq!(res.len(), 6);
     assert_eq!(res[2].get(), &118);
 }
@@ -50,7 +50,7 @@ fn iterator() {
 fn cumsum() {
     let mut ts = build_series();
     ts = ts.cumsum();
-    assert_eq!( ts[-1].get(), &707);
+    assert_eq!( ts[-1i32].get(), &707);
 }
 
 #[test]

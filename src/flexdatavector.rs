@@ -77,7 +77,7 @@ impl FlexDataVector {
                 match datatype {
                     FlexDataType::Dbl => Cell::new("f64"),
                     FlexDataType::Uint => Cell::new("u32"),
-                    FlexDataType::Int => Cell::new("i64"),
+                    FlexDataType::Int => Cell::new("i32"),
                     FlexDataType::Char => Cell::new("char"),
                     FlexDataType::Str => Cell::new("str"),
                     FlexDataType::NA => Cell::new("n/a")

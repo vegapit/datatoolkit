@@ -302,8 +302,8 @@ impl FlexSeries {
         ]));
         let type_cell = match self.datatype {
             FlexDataType::Dbl => Cell::new("f64"),
-            FlexDataType::Uint => Cell::new("u32"),
-            FlexDataType::Int => Cell::new("i64"),
+            FlexDataType::Uint => Cell::new("usize"),
+            FlexDataType::Int => Cell::new("isize"),
             FlexDataType::Char => Cell::new("char"),
             FlexDataType::Str => Cell::new("str"),
             FlexDataType::NA => Cell::new("n/a")
@@ -366,6 +366,13 @@ impl FlexSeries {
 
 // Implement [] operator
 
+impl Index<usize> for FlexSeries {
+    type Output = FlexDataPoint;
+    fn index<'a>(&'a self, index: usize) -> &'a FlexDataPoint {
+        &self.data[index]
+    }
+}
+
 impl Index<i32> for FlexSeries {
     type Output = FlexDataPoint;
     fn index<'a>(&'a self, index: i32) -> &'a FlexDataPoint {
@@ -377,9 +384,9 @@ impl Index<i32> for FlexSeries {
     }
 }
 
-impl Index<usize> for FlexSeries {
+impl Index<u32> for FlexSeries {
     type Output = FlexDataPoint;
-    fn index<'a>(&'a self, index: usize) -> &'a FlexDataPoint {
+    fn index<'a>(&'a self, index: u32) -> &'a FlexDataPoint {
         &self.data[index as usize]
     }
 }

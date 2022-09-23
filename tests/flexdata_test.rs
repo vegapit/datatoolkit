@@ -18,22 +18,22 @@ fn into_from() {
 #[test]
 fn operators() {
     // Int
-    assert_eq!( FlexData::from( 3i64 ), &FlexData::from( -5i64 ) + &FlexData::from( 8i64 ) );
-    assert_eq!( FlexData::from( 3i64 ), &FlexData::from( 8i64 ) - &FlexData::from( 5i64 ) );
-    assert_eq!( FlexData::from( 15i64 ), &FlexData::from( 5i64 ) * &FlexData::from( 3i64 ) );
-    assert_eq!( FlexData::from( 3i64 ), &FlexData::from( 15i64 ) / &FlexData::from( 5i64 ) );
+    assert_eq!( FlexData::from( 3 ), &FlexData::from( -5 ) + &FlexData::from( 8 ) );
+    assert_eq!( FlexData::from( 3 ), &FlexData::from( 8 ) - &FlexData::from( 5 ) );
+    assert_eq!( FlexData::from( 15 ), &FlexData::from( 5 ) * &FlexData::from( 3 ) );
+    assert_eq!( FlexData::from( 3 ), &FlexData::from( 15 ) / &FlexData::from( 5 ) );
 
-    let mut i = FlexData::from( 1i64 );
-    i += FlexData::from( 5i64 );
-    assert_eq!( i, FlexData::from( 6i64 ) );
+    let mut i = FlexData::from( 1 );
+    i += FlexData::from( 5 );
+    assert_eq!( i, FlexData::from( 6 ) );
 
     // Uint
-    assert_eq!( FlexData::from( 8u32 ), &FlexData::from( 5u32 ) + &FlexData::from( 3u32 ) );
-    assert_eq!( FlexData::from( 8u32 ), &FlexData::from( 15u32 ) - &FlexData::from( 7u32 ) );
-    assert_eq!( FlexData::from( 8u32 ), &FlexData::from( 2u32 ) * &FlexData::from( 4u32 ) );
-    assert_eq!( FlexData::from( 8u32 ), &FlexData::from( 32u32 ) / &FlexData::from( 4u32 ) );
+    assert_eq!( FlexData::from( 8 ), &FlexData::from( 5 ) + &FlexData::from( 3 ) );
+    assert_eq!( FlexData::from( 8 ), &FlexData::from( 15 ) - &FlexData::from( 7 ) );
+    assert_eq!( FlexData::from( 8 ), &FlexData::from( 2 ) * &FlexData::from( 4 ) );
+    assert_eq!( FlexData::from( 8 ), &FlexData::from( 32 ) / &FlexData::from( 4 ) );
 
-    let mut u = FlexData::from( 1u32 );
-    u += FlexData::from( 5u32 );
-    assert_eq!( u, FlexData::from( 6u32 ) );
+    let mut u = FlexData::from( 1 );
+    u += FlexData::from( 5 );
+    assert_eq!( u, FlexData::from( 6 ) );
 }
