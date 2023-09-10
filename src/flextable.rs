@@ -76,21 +76,19 @@ impl FlexTable {
     }
 
     pub fn from_csv(text: &str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
+        let mut filtered_text = text.to_string();
+        filtered_text.retain(|c| c != '"');
+
         // Define header positions and series
-        let raw_headers = extract_csv_headers(text);
+        let raw_headers = extract_csv_headers(filtered_text.as_str());
         
-        let mut datavectors : Vec<FlexDataVector> = Vec::new();
         let header_positions : Vec<usize> = headers.iter()
             .filter_map(|header| raw_headers.iter().position(|token| token == header))
             .collect();
 
+        let mut datavectors : Vec<FlexDataVector> = Vec::new();
         let mut counter = 0;
-        let mut skip_header = true;
-        for line in text.lines() {
-            if skip_header {
-                skip_header = false;
-                continue;
-            }
+        for line in filtered_text.lines().skip(1) {
             let tokens : Vec<&str> = line.split(',').collect();
             let data : Vec<FlexData> = header_positions.iter()
                 .enumerate()
