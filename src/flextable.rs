@@ -1,6 +1,5 @@
-use std::fs::File;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::ops::*;
 use std::convert::TryFrom;
 use std::iter::Iterator;
@@ -76,9 +75,9 @@ impl FlexTable {
         }
     }
 
-    pub fn from_csv(filepath: &str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
+    pub fn from_csv(text: &str, headers: Vec<String>, datatypes: Vec<FlexDataType>) -> Self {
         // Define header positions and series
-        let raw_headers = extract_csv_headers(filepath).expect("File not found");
+        let raw_headers = extract_csv_headers(text);
         
         let mut datavectors : Vec<FlexDataVector> = Vec::new();
         let header_positions : Vec<usize> = headers.iter()
@@ -87,21 +86,18 @@ impl FlexTable {
 
         let mut counter = 0;
         let mut skip_header = true;
-        let file = File::open(filepath).expect("File not found");
-        for opt_line in BufReader::new(file).lines() {
+        for line in text.lines() {
             if skip_header {
                 skip_header = false;
                 continue;
             }
-            if let Ok( line ) = opt_line {
-                let tokens : Vec<&str> = line.as_str().split(',').collect();
-                let data : Vec<FlexData> = header_positions.iter()
-                    .enumerate()
-                    .map(|(i,&k)| generate_flexdata_from_str( tokens[k], &datatypes[i] ) )
-                    .collect();
-                datavectors.push( FlexDataVector::new( FlexIndex::Uint(counter), data ) );
-                counter += 1;
-            }
+            let tokens : Vec<&str> = line.split(',').collect();
+            let data : Vec<FlexData> = header_positions.iter()
+                .enumerate()
+                .map(|(i,&k)| generate_flexdata_from_str( tokens[k], &datatypes[i] ) )
+                .collect();
+            datavectors.push( FlexDataVector::new( FlexIndex::Uint(counter), data ) );
+            counter += 1;
         }
         Self::from_vecs( headers, datatypes, datavectors )
     }

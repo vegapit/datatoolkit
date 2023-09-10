@@ -1,6 +1,7 @@
 extern crate datatoolkit;
 extern crate serde;
 
+use std::fs::read_to_string;
 use datatoolkit::{FlexTable, FlexData, FlexIndex, FlexDataType};
 
 fn create_table() -> FlexTable {
@@ -22,7 +23,8 @@ fn create_table() -> FlexTable {
         FlexDataType::Dbl
     ];
 
-    FlexTable::from_csv("./tests/E3.csv", headers.into_iter().map(String::from).collect(), datatypes)
+    let text = read_to_string("./tests/E3.csv").expect("File Not Found");
+    FlexTable::from_csv(text.as_str(), headers.into_iter().map(String::from).collect(), datatypes)
 }
 
 #[test]

@@ -1,18 +1,11 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::collections::HashSet;
 use crate::{FlexData, FlexIndex, FlexDataType};
 
-pub fn extract_csv_headers(filepath: &str) -> Option<Vec<String>> {
-    let file = File::open(filepath).expect("File not found");
-    BufReader::new(file).lines().flatten()
-        .map(|line| {
-            let tokens : Vec<String> = line.split(',')
-                .map(|s| s.to_string())
-                .collect();
-            tokens
-        })
-        .next()
+pub fn extract_csv_headers(text: &str) -> Vec<String> {
+    let buffer : Vec<&str> = text.lines().take(1).collect();
+    buffer[0].split(',')
+        .map(String::from)
+        .collect()
 }
 
 pub fn derive_datatype(data: &FlexData) -> FlexDataType {
