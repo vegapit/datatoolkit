@@ -12,10 +12,7 @@ pub struct FlexDataVector {
 impl FlexDataVector {
 
     pub fn new(index: FlexIndex, data: Vec<FlexData>) -> Self {
-        Self {
-            index: index,
-            data: data
-        }
+        Self { index, data }
     }
 
     // Getters and Setters
@@ -38,7 +35,7 @@ impl FlexDataVector {
 
     pub fn get_datatypes(&self) -> Vec<FlexDataType> {
         self.data.iter()
-            .map(|d| derive_datatype(&d))
+            .map(derive_datatype)
             .collect()
     }
 
@@ -50,7 +47,7 @@ impl FlexDataVector {
 
     pub fn verify(&self, f: impl Fn(&FlexData) -> bool) -> bool {
         self.data.iter()
-            .all(|fd| f(fd))
+            .all(f)
     }
 
     pub fn has_na(&self) -> bool {
@@ -112,7 +109,7 @@ impl FlexDataVector {
 // Implement [] operator
 impl Index<usize> for FlexDataVector {
     type Output = FlexData;
-    fn index<'a>(&'a self, index: usize) -> &'a FlexData {
+    fn index(&self, index: usize) -> &FlexData {
         &self.data[index]
     }
 }

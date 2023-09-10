@@ -9,10 +9,7 @@ pub struct DataPoint<T,U> {
 
 impl<T,U> DataPoint<T,U> {
     pub fn new(index: T, data: U) -> DataPoint<T,U> {
-        DataPoint{
-            data: data, 
-            index: index
-        }
+        DataPoint{ data, index }
     }
     
     pub fn get_index(&self) -> &T {

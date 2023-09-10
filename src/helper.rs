@@ -5,15 +5,14 @@ use crate::{FlexData, FlexIndex, FlexDataType};
 
 pub fn extract_csv_headers(filepath: &str) -> Option<Vec<String>> {
     let file = File::open(filepath).expect("File not found");
-    for opt_line in BufReader::new(file).lines() {
-        if let Ok( line ) = opt_line {
+    BufReader::new(file).lines().flatten()
+        .map(|line| {
             let tokens : Vec<String> = line.split(',')
                 .map(|s| s.to_string())
                 .collect();
-            return Some( tokens );
-        }
-    }
-    None
+            tokens
+        })
+        .next()
 }
 
 pub fn derive_datatype(data: &FlexData) -> FlexDataType {
@@ -29,34 +28,10 @@ pub fn derive_datatype(data: &FlexData) -> FlexDataType {
 
 pub fn generate_flexdata_from_str(token: &str, datatype: &FlexDataType) -> FlexData {
     match datatype {
-        FlexDataType::Dbl => {
-            if let Some( value ) = token.parse::<f64>().ok() {
-                FlexData::Dbl( value )
-            } else {
-                FlexData::NA
-            }
-        },
-        FlexDataType::Int => {
-            if let Some( value ) = token.parse::<i32>().ok() {
-                FlexData::Int( value )
-            } else {
-                FlexData::NA
-            }
-        },
-        FlexDataType::Uint => {
-            if let Some( value ) = token.parse::<u32>().ok() {
-                FlexData::Uint( value )
-            } else {
-                FlexData::NA
-            }
-        },
-        FlexDataType::Char => {
-            if let Some( value ) = token.parse::<char>().ok() {
-                FlexData::Char( value )
-            } else {
-                FlexData::NA
-            }
-        },
+        FlexDataType::Dbl => token.parse::<f64>().map_or(FlexData::NA, FlexData::Dbl),
+        FlexDataType::Int => token.parse::<i32>().map_or(FlexData::NA, FlexData::Int),
+        FlexDataType::Uint => token.parse::<u32>().map_or(FlexData::NA, FlexData::Uint),
+        FlexDataType::Char => token.parse::<char>().map_or(FlexData::NA, FlexData::Char),
         _ => FlexData::Str( token.to_string() )
     }
 }
@@ -81,8 +56,7 @@ pub fn make_index_from_data(data: &FlexData) -> FlexIndex {
 pub fn index_intersection(first: Vec<&FlexIndex>, other: Vec<&FlexIndex>) -> Vec<FlexIndex> {
     let set1 : HashSet<FlexIndex> = first.into_iter().cloned().collect();
     let set2 : HashSet<FlexIndex> = other.into_iter().cloned().collect();
-    let intersect : Vec<FlexIndex> = set1.intersection(&set2).into_iter().cloned().collect();
-    intersect
+    set1.intersection(&set2).cloned().collect()
 }
 
 pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
@@ -90,7 +64,7 @@ pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
         FlexData::Dbl( val ) => {
             match datatype {
                 FlexDataType::Str => FlexData::Str( format!("{}", val) ),
-                FlexDataType::Dbl => FlexData::Dbl( *val as f64 ),
+                FlexDataType::Dbl => FlexData::Dbl( *val ),
                 FlexDataType::Int => FlexData::Int( *val as i32 ),
                 FlexDataType::Uint => FlexData::Uint( *val as u32 ),
                 _ => FlexData::NA
@@ -101,7 +75,7 @@ pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
                 FlexDataType::Str => FlexData::Str( format!("{}", val) ),
                 FlexDataType::Dbl => FlexData::Dbl( *val as f64 ),
                 FlexDataType::Int => FlexData::Int( *val as i32 ),
-                FlexDataType::Uint => FlexData::Uint( *val as u32 ),
+                FlexDataType::Uint => FlexData::Uint( *val ),
                 _ => FlexData::NA
             }
         },
@@ -109,7 +83,7 @@ pub fn convert(x: &FlexData, datatype: &FlexDataType) -> FlexData {
             match datatype {
                 FlexDataType::Str => FlexData::Str( format!("{}", val) ),
                 FlexDataType::Dbl => FlexData::Dbl( *val as f64 ),
-                FlexDataType::Int => FlexData::Int( *val as i32 ),
+                FlexDataType::Int => FlexData::Int( *val ),
                 FlexDataType::Uint => FlexData::Uint( *val as u32 ),
                 _ => FlexData::NA
             }
@@ -166,8 +140,8 @@ pub fn exp(x: &FlexData) -> FlexData {
 
 pub fn sum(v: Vec<FlexData>) -> FlexData {
     let mut total = v[0].clone();
-    for i in 1..v.len() {
-        total += v[i].clone();
+    for elt in v.iter().skip(1) {
+        total += elt.clone();
     }
     total
 }

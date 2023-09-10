@@ -1,13 +1,13 @@
 extern crate datatoolkit;
 extern crate chrono;
 
-use datatoolkit::{DataPoint};
+use datatoolkit::DataPoint;
 use chrono::{Utc, TimeZone};
 
 #[test]
 fn datapoint_operations() {
-    let dt1 = Utc.ymd(2007, 3, 31).and_hms(23, 59, 59);
-    let dt2 = Utc.ymd(2007, 4, 1).and_hms(0, 0, 0);
+    let dt1 = Utc.with_ymd_and_hms(2007, 3, 31, 23, 59, 59).unwrap();
+    let dt2 = Utc.with_ymd_and_hms(2007, 4, 1, 0, 0, 0).unwrap();
     
     let r1 = DataPoint::new(dt1, 10f64);
     let r2 = DataPoint::new(dt1, 5f64);

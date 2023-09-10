@@ -10,10 +10,7 @@ pub struct FlexDataPoint {
 impl FlexDataPoint {
 
     pub fn new(index: FlexIndex, data: FlexData) -> Self {
-        Self {
-            index: index,
-            data: data
-        }
+        Self { index, data }
     }
 
     pub fn get_data(&self) -> &FlexData {

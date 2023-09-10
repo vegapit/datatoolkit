@@ -16,7 +16,7 @@ impl<T: Ord + Clone,U: PartialOrd + Clone> Series<T,U> {
         Series{
             id: id.to_string(),
             data: Vec::<DataPoint<T,U>>::new(),
-            opt_max_size: opt_max_size,
+            opt_max_size,
             counter: 0
         }
     }
@@ -60,13 +60,11 @@ impl<T: Ord + Clone,U: PartialOrd + Clone> Series<T,U> {
                     } else {
                         None
                     }
-                } else {
-                    if pos >= (-offset as usize) {
+                } else if pos >= (-offset as usize) {
                         let newpos = pos - (-offset as usize);
                         Some( self.data[newpos].clone() )
-                    } else {
-                        None
-                    }
+                } else {
+                    None
                 }
             },
             None => None
@@ -86,8 +84,8 @@ impl<T: Ord + Clone,U: PartialOrd + Clone> Series<T,U> {
 
     /// Get range from start to end inclusive
     pub fn range(&self, start: i32, end: i32) -> Vec<DataPoint<T,U>> {
-        let is : usize = if start >= 0 { start as usize } else { self.data.len() - start.abs() as usize };
-        let ie : usize = if end >= 0 { end as usize } else { self.data.len() - end.abs() as usize };
+        let is : usize = if start >= 0 { start as usize } else { self.data.len() - start.unsigned_abs() as usize };
+        let ie : usize = if end >= 0 { end as usize } else { self.data.len() - end.unsigned_abs() as usize };
         let mut res : Vec<DataPoint<T,U>> = Vec::new();
         for i in is..=ie {
             res.push( self[i].clone() )
@@ -123,7 +121,7 @@ impl<T: Ord + Clone,U: PartialOrd + AddAssign + From<u8> + Copy> Series<T,U> {
     pub fn cumsum(&self) -> Series<T,U> {
         let mut running_total : U = 0.into();
         let mut ts = Series::<T,U>::new( self.id.as_str(), self.opt_max_size );
-        for mut dp in self.clone().into_iter() {
+        for mut dp in self.clone() {
             running_total += *dp.get();
             dp.set( running_total );
             ts.insert_update( dp );
@@ -136,7 +134,7 @@ impl<T: Ord + Clone,U: PartialOrd + AddAssign + From<u8> + Copy> Series<T,U> {
 // Implement [] operator
 impl<T,U> Index<i32> for Series<T,U> {
     type Output = DataPoint<T,U>;
-    fn index<'a>(&'a self, index: i32) -> &'a DataPoint<T,U> {
+    fn index(&self, index: i32) -> &DataPoint<T,U> {
         if index >= 0 {
             &self.data[index as usize]
         } else {
@@ -147,7 +145,7 @@ impl<T,U> Index<i32> for Series<T,U> {
 
 impl<T,U> Index<usize> for Series<T,U> {
     type Output = DataPoint<T,U>;
-    fn index<'a>(&'a self, index: usize) -> &'a DataPoint<T,U> {
+    fn index(&self, index: usize) -> &DataPoint<T,U> {
         &self.data[index]
     }
 }

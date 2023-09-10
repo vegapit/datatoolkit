@@ -20,7 +20,7 @@ impl FlexSeries {
         Self {
             iter_counter: 0,
             label: label.to_string(),
-            datatype: datatype,
+            datatype,
             data: Vec::new(),
             index_to_pos: HashMap::new()
         }
@@ -37,9 +37,9 @@ impl FlexSeries {
         Self {
             iter_counter: 0,
             label: label.to_string(),
-            datatype: datatype,
+            datatype,
             data: mod_data,
-            index_to_pos: index_to_pos
+            index_to_pos
         }
     }
 
@@ -139,7 +139,7 @@ impl FlexSeries {
         Self::from_vec(self.label.as_str(), self.datatype.clone(), data)
     }
 
-    pub fn align_to(&self, indices: &Vec<FlexIndex>) -> Self {
+    pub fn align_to(&self, indices: &[FlexIndex]) -> Self {
         let mut series = self.clone();
         for index in indices.iter() {
             if !series.contains( index ) {
@@ -234,7 +234,7 @@ impl FlexSeries {
             let mut res = 0.0f64;
             let mut n = 0.0f64;
             for idx in self.get_indices() {
-                let x = f64::try_from( float_series.at(&idx).unwrap().get_data() ).unwrap();
+                let x = f64::try_from( float_series.at(idx).unwrap().get_data() ).unwrap();
                 n += 1.0;
                 let dx1 = x - m;
                 m += dx1 / n;
@@ -368,14 +368,14 @@ impl FlexSeries {
 
 impl Index<usize> for FlexSeries {
     type Output = FlexDataPoint;
-    fn index<'a>(&'a self, index: usize) -> &'a FlexDataPoint {
+    fn index(&self, index: usize) -> &FlexDataPoint {
         &self.data[index]
     }
 }
 
 impl Index<i32> for FlexSeries {
     type Output = FlexDataPoint;
-    fn index<'a>(&'a self, index: i32) -> &'a FlexDataPoint {
+    fn index(&self, index: i32) -> &FlexDataPoint {
         if index >= 0 {
             &self.data[index as usize]
         } else {
@@ -386,7 +386,7 @@ impl Index<i32> for FlexSeries {
 
 impl Index<u32> for FlexSeries {
     type Output = FlexDataPoint;
-    fn index<'a>(&'a self, index: u32) -> &'a FlexDataPoint {
+    fn index(&self, index: u32) -> &FlexDataPoint {
         &self.data[index as usize]
     }
 }

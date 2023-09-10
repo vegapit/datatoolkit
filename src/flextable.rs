@@ -48,9 +48,9 @@ impl FlexTable {
             iter_counter: 0,
             labels: series.iter().map(|s| s.get_label().to_string()).collect(),
             datatypes: series.iter().map(|s| s.get_datatype().clone()).collect(),
-            data: data,
-            label_to_pos: label_to_pos,
-            index_to_pos: index_to_pos
+            data,
+            label_to_pos,
+            index_to_pos
         }
     }
 
@@ -68,11 +68,11 @@ impl FlexTable {
         }
         Self{
             iter_counter: 0,
-            labels: labels,
-            datatypes: datatypes,
+            labels,
+            datatypes,
             data: mod_data,
-            label_to_pos: label_to_pos,
-            index_to_pos: index_to_pos
+            label_to_pos,
+            index_to_pos
         }
     }
 
@@ -145,9 +145,7 @@ impl FlexTable {
     }
 
     pub fn get_indices(&self) -> Vec<FlexIndex> {
-        self.index_to_pos.keys()
-            .map(|k| k.clone())
-            .collect()
+        self.index_to_pos.keys().cloned().collect()
     }
 
     pub fn num_records(&self) -> usize {
@@ -161,11 +159,7 @@ impl FlexTable {
     // Selecting
 
     pub fn at(&self, index: &FlexIndex) -> Option<FlexDataVector> {
-        if let Some( &pos ) = self.index_to_pos.get( index ) {
-            Some( self.data[pos].clone() )
-        } else {
-            None
-        }
+        self.index_to_pos.get( index ).map(|pos| self.data[*pos].clone())
     }
 
     pub fn contains(&self, index: &FlexIndex) -> bool {
@@ -173,12 +167,9 @@ impl FlexTable {
     }
 
     pub fn get_subset(&self, indices: Vec<FlexIndex>) -> Self {
-        let mut records : Vec<FlexDataVector> = Vec::new();
-        for index in indices.into_iter() {
-            if let Some( record ) = self.at( &index ) {
-                records.push( record );
-            }
-        }
+        let records : Vec<FlexDataVector> = indices.into_iter()
+            .filter_map(|index| self.at(&index))
+            .collect();
         Self::from_vecs( self.labels.clone(), self.datatypes.clone(),  records )
     }
 
@@ -373,7 +364,7 @@ impl FlexTable {
             }
         }
 
-        if thread_handles.len() > 0 {
+        if !thread_handles.is_empty() {
             thread_handles.into_iter()
                 .for_each(|handle| { let _ = handle.join(); });
         }
@@ -437,7 +428,7 @@ impl FlexTable {
 
 impl Index<usize> for FlexTable {
     type Output = FlexDataVector;
-    fn index<'a>(&'a self, index: usize) -> &'a FlexDataVector {
+    fn index(&self, index: usize) -> &FlexDataVector {
         &self.data[index]
     }
 }
